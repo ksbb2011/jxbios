@@ -1,0 +1,62 @@
+# ============================================================================
+#  .github/workflows/ios-ipa.yml —— 免费云端编译 iOS 标定 App（2026-09-13）
+#
+#  为什么用它：本机没有可用的 Mac（iMac 2015 / MacBook Pro 2012 都太老，装不上
+#  Xcode 16 → 装不了 iOS 16.7 真机）。这里借用 GitHub 的 macOS 机器编译出**未签名 ipa**，
+#  下载到 Windows 后用 Sideloadly + 免费 Apple ID 装进手机。
+#
+#  前提：
+#    · 仓库设为 **Public**（公开仓库的 Actions 免费额度不限；私有仓库 macOS 构建按 10 倍扣额度）
+#    · 能访问 GitHub（下载 artifact 时需要）
+#
+#  用法：
+#    1) 手动：仓库页 → Actions → 左侧本 workflow → Run workflow
+#    2) 自动：改动 ios_calib/** 并推到 main 时自动触发
+#    3) 跑完在该次运行页面底部 **Artifacts** 里下载 OrderPickerCalib-unsigned-ipa
+#
+#  注意：编译逻辑全在 ios_calib/build_ipa.sh 里，本文件只负责"装工具 + 调用 + 上传产物"，
+#       不复制任何编译参数 —— 避免和云 Mac 那条路线慢慢漂移成两套流程。
+# ============================================================================
+name: 编译 iOS 标定 App（未签名 ipa）
+
+on:
+  # 手动触发：改完代码想立刻重编，不必等 push
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'ios_calib/**'
+      - '.github/workflows/ios-ipa.yml'
+
+jobs:
+  ipa:
+    # 用 macos-latest 最省心（任何较新的 Xcode 都能编；真机安装由 Sideloadly 完成，
+    # 与 runner 的 Xcode 版本无关）。若该标签不可用，改成 macos-15 / macos-14 即可。
+    runs-on: macos-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # 先把环境打出来：出错时一眼看出是"环境版本不对"还是"代码本身编不过"
+      - name: 环境自检（系统 / Xcode / SDK / 磁盘）
+        run: |
+          sw_vers
+          xcodebuild -version
+          xcode-select -p
+          xcrun --sdk iphoneos --show-sdk-version
+          df -h / | tail -1
+
+      - name: 安装 XcodeGen（工程由 project.yml 生成，不提交 .xcodeproj）
+        run: brew install xcodegen
+
+      - name: 生成工程并编译出未签名 ipa
+        run: bash ios_calib/build_ipa.sh
+
+      - name: 上传 ipa（跑完在本页面底部 Artifacts 下载）
+        uses: actions/upload-artifact@v4
+        with:
+          name: OrderPickerCalib-unsigned-ipa
+          path: ios_calib/build/ipa/*.ipa
+          if-no-files-found: error
+          retention-days: 30

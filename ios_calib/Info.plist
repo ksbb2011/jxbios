@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  ==========================================================================
+   ios_calib/Info.plist   手机传感端配置（显式文件，2026-09-13）
+
+   为什么固化成文件而不是“在 Xcode 里点 Info 页签”：
+     · 云端编译（云 Mac / GitHub Actions）没有人手点 GUI；
+     · 下面这三项配错都不会报错，只会“连不上”或“坐标整体错位”，
+       属于只能靠现象反推的隐性故障，必须写死并存进 git。
+
+   关键项：
+     UILaunchScreen                     缺它 → 兼容模式 → 逻辑分辨率不再是
+                                        375×812 → 所有触摸坐标整体错位
+                                        （看起来能跑、数据全废，最危险的一项）
+     NSAppTransportSecurity/            iOS 默认禁止明文 HTTP，缺它 → 连不上
+       NSAllowsLocalNetworking
+     NSLocalNetworkUsageDescription     iOS 14+ 访问局域网会弹权限框，
+                                        缺它 → 静默失败（连不上但没提示）
+     UIStatusBarHidden +                与 SwiftUI 侧 .statusBar(hidden:)
+       UIViewControllerBasedStatusBarAppearance   配套，保证真全屏
+
+   注意：本文件里不能出现连续两个短横线（XML 注释语法不允许）。
+  ==========================================================================
+-->
+<plist version="1.0">
+<dict>
+	<!-- ===== 基本信息 ===== -->
+	<key>CFBundleDevelopmentRegion</key>
+	<string>zh_CN</string>
+	<key>CFBundleDisplayName</key>
+	<string>标定</string>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>$(PRODUCT_NAME)</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>$(MARKETING_VERSION)</string>
+	<key>CFBundleVersion</key>
+	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>LSRequiresIPhoneOS</key>
+	<true/>
+
+	<!-- ===== 全屏与坐标口径（这三组直接决定标定数据能不能用） ===== -->
+	<!-- 空字典即可：只要“存在”就不会进兼容模式，逻辑分辨率才等于机型原生点阵 -->
+	<key>UILaunchScreen</key>
+	<dict/>
+	<key>UIStatusBarHidden</key>
+	<true/>
+	<key>UIViewControllerBasedStatusBarAppearance</key>
+	<false/>
+	<key>UIRequiresFullScreen</key>
+	<true/>
+	<!-- 只留竖屏：旋转会改变坐标系，机械臂映射是按竖屏 375×812 标出来的 -->
+	<key>UISupportedInterfaceOrientations</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+	</array>
+
+	<!-- ===== 局域网明文 HTTP（连不上电脑的头号原因） ===== -->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>用于与电脑上的标定工具通信，采集触摸坐标</string>
+
+	<key>UIApplicationSupportsIndirectInputEvents</key>
+	<true/>
+</dict>
+</plist>

@@ -20,8 +20,12 @@ import UIKit
 
 final class TouchView: UIView {
 
-    /// 触摸回调：(视图内坐标, 类型 "began"/"ended")
-    var onTouch: ((CGPoint, String) -> Void)?
+    /// 触摸回调：(视图内坐标, **本次触摸时的画布尺寸**, 类型 "began"/"ended")
+    ///
+    /// 尺寸随触摸一起回传，而不是让上层读 `@State` 里的缓存值：
+    /// 第一帧的 `@State` 还是 0×0，会让首个上报带上 `viewport:[0,0]`（电脑端会记一次
+    /// viewport_bad），这一帧的尺寸才是权威值。
+    var onTouch: ((CGPoint, CGSize, String) -> Void)?
     /// 尺寸回调：(画布尺寸, 窗口尺寸)——用于自检"有没有铺满全屏"
     var onMeta: ((CGSize, CGSize?) -> Void)?
 
@@ -39,12 +43,12 @@ final class TouchView: UIView {
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
         guard let t = touches.first else { return }
         onMeta?(bounds.size, window?.bounds.size)
-        onTouch?(t.location(in: self), "began")
+        onTouch?(t.location(in: self), bounds.size, "began")
     }
 
     override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
         guard let t = touches.first else { return }
-        onTouch?(t.location(in: self), "ended")
+        onTouch?(t.location(in: self), bounds.size, "ended")
     }
 
     override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
@@ -53,7 +57,7 @@ final class TouchView: UIView {
 }
 
 struct TouchCanvas: UIViewRepresentable {
-    var onTouch: (CGPoint, String) -> Void
+    var onTouch: (CGPoint, CGSize, String) -> Void
     var onMeta: (CGSize, CGSize?) -> Void
 
     func makeUIView(context: Context) -> TouchView {

@@ -1,0 +1,60 @@
+# ============================================================================
+#  ios_calib/project.yml —— XcodeGen 工程描述（2026-09-13）
+#
+#  为什么用它：云端编译（租的云 Mac / GitHub Actions）里**没有人手点 GUI**，
+#  而 .xcodeproj 手写极易出错、每次重生成还会产生大量噪声 diff。XcodeGen 用这份
+#  YAML 一条命令生成工程（xcodegen generate），跨机器结果一致、纯文本可评审。
+#
+#  用法（Mac 上，仓库任意位置）：
+#      brew install xcodegen
+#      bash ios_calib/build_ipa.sh        # 内部会自动调用 xcodegen 并出 ipa
+#
+#  ⚠️ Info.plist 是**手写的显式文件**，所以这里只在 settings 里设 INFOPLIST_FILE，
+#     **绝不要**再加 xcodegen 的 `info:` 段 —— 那会让 xcodegen 反过来覆盖我们的 plist
+#     （ATS / 本地网络权限 / UILaunchScreen 全在里面，被覆盖掉会静默连不上电脑）。
+# ============================================================================
+name: OrderPickerCalib
+
+options:
+  bundleIdPrefix: com.jxb
+  deploymentTarget:
+    iOS: "15.0"
+  createIntermediateGroups: true
+
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    IPHONEOS_DEPLOYMENT_TARGET: "15.0"
+    ALWAYS_SEARCH_USER_PATHS: NO
+
+targets:
+  OrderPickerCalib:
+    type: application
+    platform: iOS
+    sources:
+      - path: OrderPickerCalib
+    settings:
+      base:
+        PRODUCT_NAME: OrderPickerCalib
+        PRODUCT_BUNDLE_IDENTIFIER: com.jxb.OrderPickerCalib
+        MARKETING_VERSION: "1.0"
+        CURRENT_PROJECT_VERSION: "1"
+
+        # 显式 Info.plist（禁止 Xcode 自动生成同名文件）
+        INFOPLIST_FILE: Info.plist
+        GENERATE_INFOPLIST_FILE: NO
+
+        # 仅 iPhone：避免 iPad 兼容模式改变逻辑分辨率（本 App 的坐标口径依赖 375×812）
+        TARGETED_DEVICE_FAMILY: "1"
+
+        # 出**未签名**包：签名交给 Windows 上的 Sideloadly（免费 Apple ID）完成
+        CODE_SIGNING_ALLOWED: NO
+        CODE_SIGNING_REQUIRED: NO
+        CODE_SIGN_IDENTITY: ""
+        CODE_SIGN_STYLE: Manual
+        DEVELOPMENT_TEAM: ""
+        PROVISIONING_PROFILE_SPECIFIER: ""
+
+    scheme:
+      testTargets: []
+      gatherCoverageData: false

@@ -9,9 +9,9 @@
 //    · 触摸被 TouchCanvas 全屏消费；设置面板只在非运行状态下才建议打开。
 //
 //  免责：本文件在 Windows 上无法编译验证（无 Mac/Xcode 环境），只保证逻辑与协议自洽。
-//
 
 import SwiftUI
+import UIKit          // UIApplication.shared.isIdleTimerDisabled 需要（只 import SwiftUI 时可能编不过）
 
 struct CalibView: View {
 
@@ -24,17 +24,18 @@ struct CalibView: View {
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
-        GeometryReader { geo in
+        GeometryReader { _ in
             ZStack {
                 // ① 全屏触摸画布（最底层，吃掉所有触摸）
                 TouchCanvas(
-                    onTouch: { point, kind in
+                    onTouch: { point, size, kind in
                         if kind == "began" {
+                            canvasSize = size
                             Task {
                                 await client.report(x: Double(point.x), y: Double(point.y),
                                                     kind: kind,
-                                                    w: Double(canvasSize.width),
-                                                    h: Double(canvasSize.height))
+                                                    w: Double(size.width),
+                                                    h: Double(size.height))
                             }
                         } else {
                             lastEnded = String(format: "%.1f, %.1f", point.x, point.y)
@@ -108,9 +109,6 @@ struct CalibView: View {
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 10)
                         .padding(.bottom, 6)
-                        .onChange(of: client.lastError) { _ in
-                            // 出错时就地显示，不弹窗（弹窗会挡住靶心）
-                        }
                 }
             }
         }
@@ -121,8 +119,8 @@ struct CalibView: View {
             UIApplication.shared.isIdleTimerDisabled = true      // 防自动锁屏（整轮标定要几分钟）
             client.start(base: serverURL)
         }
-        .onChange(of: serverURL) { newValue in
-            client.start(base: newValue)
+        .onChange(of: serverURL) { _ in
+            client.start(base: serverURL)
         }
         .onChange(of: scenePhase) { phase in
             // 回前台重新点亮常亮并保证轮询在跑；退后台就交还系统（否则整机耗电）
@@ -134,7 +132,7 @@ struct CalibView: View {
             }
         }
         .sheet(isPresented: $showSettings) {
-            SettingsView(serverURL: $serverURL, client: client)
+            SettingsView(serverURL: $serverURL, client: client, canvasText: canvasText)
         }
     }
 
@@ -147,6 +145,10 @@ struct CalibView: View {
 
     private var statusText: String {
         if !client.connected { return "未连接电脑（点右上角齿轮填地址）" }
+        // 视口不符优先报警：这时继续上报只会把错误坐标写进配置，必须让人先看见
+        if client.viewportMismatch {
+            return "视口不符 \(canvasText) ≠ 期望 \(expectText)（已停止上报）"
+        }
         switch client.phase {
         case "running": return "进行中 \(client.index + 1)/\(client.total)"
         case "done":    return "标定完成 ✓"
@@ -157,17 +159,28 @@ struct CalibView: View {
 
     private var statusColor: Color {
         if !client.connected { return Color(white: 0.45) }
+        if client.viewportMismatch { return Color(red: 1.0, green: 0.58, blue: 0.0) }
         switch client.phase {
         case "done":  return Color(red: 0.19, green: 0.82, blue: 0.35)
         case "error": return Color(red: 0.84, green: 0.0, blue: 0.0)
-        default:      return Color(red: 0.04, green: 0.52, blue: 1.0)
+        case "running": return Color(red: 0.04, green: 0.52, blue: 1.0)
+        default:        return Color(white: 0.62)   // waiting 用灰色，和"进行中"的蓝色区分开
         }
+    }
+
+    private var canvasText: String {
+        "\(Int(canvasSize.width))×\(Int(canvasSize.height))"
+    }
+
+    private var expectText: String {
+        "\(client.expectViewport.first ?? 0)×\(client.expectViewport.last ?? 0)"
     }
 
     private var footerText: String {
         var line1 = "\(client.baseURL.isEmpty ? "-" : client.baseURL)   " +
-                    "画布 \(Int(canvasSize.width))×\(Int(canvasSize.height))   " +
-                    "窗口 \(Int(windowSize.width))×\(Int(windowSize.height))"
+                    "画布 \(canvasText)   " +
+                    "窗口 \(Int(windowSize.width))×\(Int(windowSize.height))   " +
+                    "期望 \(expectText)"
         if !client.connected { line1 += "\n" + client.lastError }
         else {
             line1 += "   上报 \(client.reports)  轮询 \(client.polls)"
@@ -182,6 +195,7 @@ struct CalibView: View {
 private struct SettingsView: View {
     @Binding var serverURL: String
     @ObservedObject var client: CalibClient
+    var canvasText: String
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -200,6 +214,18 @@ private struct SettingsView: View {
                         .font(.footnote).foregroundColor(.secondary)
                     if !client.lastError.isEmpty {
                         Text(client.lastError).font(.footnote).foregroundColor(.red)
+                    }
+                }
+                Section(header: Text("视口自检（坐标口径）")) {
+                    Text("本机画布：\(canvasText)")
+                    Text("电脑端期望：\(client.expectViewport.first ?? 0)×\(client.expectViewport.last ?? 0)")
+                        .font(.footnote)
+                    if client.viewportMismatch {
+                        Text("⚠️ 两者不一致，本 App 已停止上报。请把电脑端的 --width / --height 改成与「本机画布」一致，或换回 375×812 的机型再跑。")
+                            .font(.footnote).foregroundColor(.orange)
+                    } else {
+                        Text("两者一致才会上报触摸坐标（不一致会被电脑端静默算出错误配置）")
+                            .font(.footnote).foregroundColor(.secondary)
                     }
                 }
                 Section(header: Text("连不上时依次检查")) {
