@@ -29,8 +29,11 @@ struct CalibView: View {
                 // ① 全屏触摸画布（最底层，吃掉所有触摸）
                 TouchCanvas(
                     onTouch: { point, size, kind in
+                        canvasSize = size
+                        // 任何一次触摸都记一笔（含抬起、含电脑端不在 running 的情况）：
+                        // 现场判断"App 到底有没有收到触摸"就靠它
+                        client.noteTouch(x: Double(point.x), y: Double(point.y))
                         if kind == "began" {
-                            canvasSize = size
                             Task {
                                 await client.report(x: Double(point.x), y: Double(point.y),
                                                     kind: kind,
@@ -48,7 +51,7 @@ struct CalibView: View {
                 )
                 .ignoresSafeArea()
 
-                // ② 靶心（唯一图形元素）：白环 = 本次瞄准点，红点 = 本轮靶点
+                // ② 靶心：白环 = 本次瞄准点，红点 = 本轮靶点
                 if client.phase == "running" {
                     Circle()
                         .stroke(Color.white.opacity(0.9), lineWidth: 3)
@@ -60,28 +63,47 @@ struct CalibView: View {
                         .position(x: client.tx, y: client.ty)
                 }
 
+                // ②b 最近一次**实际收到**的触摸位置（青色小点，纯诊断）
+                //     它回答"屏幕认为你点在哪儿"；与白环（应到位置）一对比，
+                //     立刻就能分辨是"根本没压到屏"还是"压到了但偏了"。不参与任何计算。
+                if client.touchSeen > 0 {
+                    Circle()
+                        .fill(Color.cyan.opacity(0.5))
+                        .frame(width: 9, height: 9)
+                        .position(x: client.lastTouchX, y: client.lastTouchY)
+                        .allowsHitTesting(false)
+                }
+
                 // ③ 顶部状态条 + 细进度条 + 右上角设置
                 VStack(spacing: 6) {
                     HStack(spacing: 10) {
                         Circle()
                             .fill(statusColor)
                             .frame(width: 10, height: 10)
+                            .allowsHitTesting(false)
                         Text(statusText)
                             .font(.system(size: 17, weight: .semibold))
                             .foregroundColor(.white)
                             .lineLimit(1)
+                            .allowsHitTesting(false)
                         Spacer(minLength: 8)
-                        Button {
-                            showSettings = true
-                        } label: {
-                            Image(systemName: "gearshape.fill")
-                                .font(.system(size: 16))
-                                .foregroundColor(.white.opacity(0.55))
+                        // 运行中把齿轮藏起来：一是标定期间不必改地址，二是要保证顶部这条
+                        // **完全没有任何可点元素**——网格最高一行正好压在这里，任何可交互
+                        // 元素都会把触摸吃掉（真机实测：第 1 个点就是这么丢的）。
+                        if client.phase != "running" {
+                            Button {
+                                showSettings = true
+                            } label: {
+                                Image(systemName: "gearshape.fill")
+                                    .font(.system(size: 16))
+                                    .foregroundColor(.white.opacity(0.55))
+                            }
                         }
                     }
                     .padding(.horizontal, 14)
                     .padding(.vertical, 10)
-                    .background(Color.black.opacity(0.55))
+                    // 背景色也要显式关掉 hit-testing：SwiftUI 的 Color 默认可点，会吃掉触摸
+                    .background(Color.black.opacity(0.55).allowsHitTesting(false))
                     .cornerRadius(12)
 
                     GeometryReader { g in
@@ -92,6 +114,7 @@ struct CalibView: View {
                         }
                     }
                     .frame(height: 3)
+                    .allowsHitTesting(false)
                     .cornerRadius(1.5)
 
                     Spacer()
@@ -103,13 +126,16 @@ struct CalibView: View {
                 VStack {
                     Spacer()
                     Text(footerText)
-                        .font(.system(size: 11, design: .monospaced))
-                        .foregroundColor(.white.opacity(0.42))
-                        .lineLimit(2)
+                        // 放大加亮 + 补"触摸 N / 最近触摸"：现场判断"App 有没有收到触摸"
+                        // 全靠这一行，原来 11pt/0.42 太暗，调试时根本看不清。
+                        .font(.system(size: 14, weight: .medium, design: .monospaced))
+                        .foregroundColor(.white.opacity(0.8))
+                        .lineLimit(3)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 10)
                         .padding(.bottom, 6)
                 }
+                .allowsHitTesting(false)   // 底部整块只是显示，绝不能截住触摸
             }
         }
         .background(Color.black)
@@ -181,10 +207,14 @@ struct CalibView: View {
                     "画布 \(canvasText)   " +
                     "窗口 \(Int(windowSize.width))×\(Int(windowSize.height))   " +
                     "期望 \(expectText)"
-        if !client.connected { line1 += "\n" + client.lastError }
-        else {
-            line1 += "   上报 \(client.reports)  轮询 \(client.polls)"
-            line1 += "\n最近上报 \(client.lastReportText)   电脑收到 \(client.lastAckText)   抬起 \(lastEnded)"
+        if !client.connected {
+            line1 += "\n未连接：" + client.lastError
+        } else {
+            // 触摸 = 屏上真实收到的触摸次数（含抬起；电脑端未在 running 时也计）
+            // 上报 = 成功发给电脑的次数（只在电脑端 running 时才会涨）
+            line1 += "   触摸 \(client.touchSeen)   上报 \(client.reports)   轮询 \(client.polls)"
+            line1 += "\n最近触摸 \(client.lastTouchAt) @ \(client.lastTouchText)" +
+                     "   电脑收到 \(client.lastAckText)   抬起 \(lastEnded)"
         }
         return line1
     }

@@ -50,6 +50,17 @@ final class CalibClient: ObservableObject {
     /// 机型逻辑分辨率与电脑端期望不符：这是最危险的静默失效，一旦为真就停止上报并高亮报警
     @Published var viewportMismatch = false
 
+    // ---- 现场触摸记录（**只用于显示与诊断**，不参与上报逻辑）
+    //      标定现场最难回答的问题就是"App 到底有没有收到触摸"：有了这三个量，
+    //      一眼就能和电脑端的 touches 对上，不必再靠猜。
+    /// 屏上**真实收到**的触摸次数（began/ended 都算，不论 phase、不论是否成功上报）
+    @Published var touchSeen = 0
+    /// 最近一次触摸的时间与坐标（不论是否上报）
+    @Published var lastTouchAt = "-"
+    @Published var lastTouchText = "-"
+    @Published var lastTouchX: Double = 0
+    @Published var lastTouchY: Double = 0
+
     private var base = ""
     private var running = false
 
@@ -100,6 +111,23 @@ final class CalibClient: ObservableObject {
         } else {
             lastAckText = "-"
         }
+    }
+
+    // MARK: - 触摸记录（仅显示）
+
+    /// 由视图在**任意**触摸时调用（手指点、机械臂压都算；不管 phase、不管是否上报成功）。
+    func noteTouch(x: Double, y: Double) {
+        touchSeen += 1
+        lastTouchAt = CalibClient.clockText()
+        lastTouchText = String(format: "%.1f, %.1f", x, y)
+        lastTouchX = x
+        lastTouchY = y
+    }
+
+    private static func clockText() -> String {
+        let f = DateFormatter()
+        f.dateFormat = "HH:mm:ss"
+        return f.string(from: Date())
     }
 
     // MARK: - 上报
