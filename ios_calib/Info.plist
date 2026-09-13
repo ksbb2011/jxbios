@@ -72,7 +72,9 @@
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>用于与电脑上的标定工具通信，采集触摸坐标</string>
 
-	<key>UIApplicationSupportsIndirectInputEvents</key>
-	<true/>
+	<!-- 注意：这里**刻意不写** UIApplicationSupportsIndirectInputEvents。
+	     它是"支持间接输入（鼠标/触控板/触控笔类）"的声明，会让系统按"指针"而非
+	     "手指触摸"来投递这类事件 —— 真机症状正是：机械臂的电容笔在备忘录里能画，
+	     本 App 的 touchesBegan 却完全收不到。删掉它，让触控笔继续走普通触摸通道。 -->
 </dict>
 </plist>

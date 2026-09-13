@@ -21,6 +21,7 @@ struct CalibView: View {
     @State private var canvasSize: CGSize = .zero
     @State private var windowSize: CGSize = .zero
     @State private var lastEnded = "-"
+    @State private var didAutoOpenSettings = false
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
@@ -90,13 +91,19 @@ struct CalibView: View {
                         // 运行中把齿轮藏起来：一是标定期间不必改地址，二是要保证顶部这条
                         // **完全没有任何可点元素**——网格最高一行正好压在这里，任何可交互
                         // 元素都会把触摸吃掉（真机实测：第 1 个点就是这么丢的）。
-                        if client.phase != "running" {
+                        // 另外：**未连接电脑时也要显示**（否则电脑端退出后 phase 会卡在
+                        // running，齿轮永远不出现，想改地址都点不到）。
+                        if !client.connected || client.phase != "running" {
                             Button {
                                 showSettings = true
                             } label: {
                                 Image(systemName: "gearshape.fill")
                                     .font(.system(size: 16))
                                     .foregroundColor(.white.opacity(0.55))
+                                    // 点击区放大到 44×44（iOS 最小可点尺寸）：
+                                    // 原来只有图标那么大约 16pt，手指很难点中。
+                                    .frame(width: 44, height: 44)
+                                    .contentShape(Rectangle())
                             }
                         }
                     }
@@ -144,6 +151,15 @@ struct CalibView: View {
         .onAppear {
             UIApplication.shared.isIdleTimerDisabled = true      // 防自动锁屏（整轮标定要几分钟）
             client.start(base: serverURL)
+            // 兜底入口：地址没填对 / 电脑端还没跑时，右上角齿轮又小又难戳。
+            // 12 秒后若仍未连上、且从未成功上报过，就把设置面板自动打开一次。
+            Task {
+                try? await Task.sleep(nanoseconds: 12_000_000_000)
+                if !client.connected && client.reports == 0 && !didAutoOpenSettings {
+                    didAutoOpenSettings = true
+                    showSettings = true
+                }
+            }
         }
         .onChange(of: serverURL) { _ in
             client.start(base: serverURL)
@@ -207,14 +223,16 @@ struct CalibView: View {
                     "画布 \(canvasText)   " +
                     "窗口 \(Int(windowSize.width))×\(Int(windowSize.height))   " +
                     "期望 \(expectText)"
-        if !client.connected {
-            line1 += "\n未连接：" + client.lastError
-        } else {
+        // 触摸数**始终显示**（未连接时也显示）——"屏到底有没有收到触摸"是现场第一问题
+        line1 += "   触摸 \(client.touchSeen)   上报 \(client.reports)"
+        if client.connected {
             // 触摸 = 屏上真实收到的触摸次数（含抬起；电脑端未在 running 时也计）
             // 上报 = 成功发给电脑的次数（只在电脑端 running 时才会涨）
-            line1 += "   触摸 \(client.touchSeen)   上报 \(client.reports)   轮询 \(client.polls)"
+            line1 += "   轮询 \(client.polls)"
             line1 += "\n最近触摸 \(client.lastTouchAt) @ \(client.lastTouchText)" +
                      "   电脑收到 \(client.lastAckText)   抬起 \(lastEnded)"
+        } else {
+            line1 += "\n未连接：\(client.lastError)"
         }
         return line1
     }

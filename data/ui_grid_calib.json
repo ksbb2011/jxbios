@@ -1,0 +1,150 @@
+[
+  {
+    "when": "2026-09-14T00:10:34",
+    "params": {
+      "cols": 2,
+      "rows": 2,
+      "margin": 0.5,
+      "z_press": 5.9,
+      "settle": 1.5,
+      "dwell": 2.0,
+      "wait_touch": 6.0,
+      "radius": 0.0,
+      "w": 375,
+      "h": 812,
+      "verify": false
+    },
+    "pass1_measure": {
+      "n": 3,
+      "mean_pt": 135.368,
+      "max_pt": 163.021,
+      "p90_pt": 134.015,
+      "worst": {
+        "name": "g_r1c0",
+        "x": 187.5,
+        "y": 406.0,
+        "dx": 108.5,
+        "dy": -121.7
+      }
+    },
+    "pass2_selfcheck": null,
+    "pass3_verify": null,
+    "anchors": [],
+    "model": null,
+    "touches": {
+      "total": 3,
+      "stale": 0,
+      "dup": 0,
+      "viewport_bad": 0
+    },
+    "points_pass1": [
+      {
+        "name": "g_r0c0",
+        "pass": 1,
+        "tx": 187.5,
+        "ty": 406.0,
+        "ax": 41.888,
+        "ay": 87.187,
+        "touch_x": 94.3,
+        "touch_y": 502.3,
+        "dx": 93.17,
+        "dy": -96.33,
+        "dist_pt": 134.02
+      },
+      {
+        "name": "g_r0c1",
+        "pass": 1,
+        "tx": 187.5,
+        "ty": 406.0,
+        "ax": 41.888,
+        "ay": 87.187,
+        "touch_x": 256.7,
+        "touch_y": 490.3,
+        "dx": -69.17,
+        "dy": -84.33,
+        "dist_pt": 109.07
+      },
+      {
+        "name": "g_r1c0",
+        "pass": 1,
+        "tx": 187.5,
+        "ty": 406.0,
+        "ax": 41.888,
+        "ay": 87.187,
+        "touch_x": 79.0,
+        "touch_y": 527.7,
+        "dx": 108.5,
+        "dy": -121.67,
+        "dist_pt": 163.02
+      },
+      {
+        "name": "g_r1c1",
+        "pass": 1,
+        "tx": 187.5,
+        "ty": 406.0,
+        "ax": 41.888,
+        "ay": 87.187,
+        "touch_x": -1.0,
+        "touch_y": -1.0,
+        "dx": null,
+        "dy": null,
+        "dist_pt": null
+      }
+    ],
+    "points_final": [
+      {
+        "name": "g_r0c0",
+        "pass": 1,
+        "tx": 187.5,
+        "ty": 406.0,
+        "ax": 41.888,
+        "ay": 87.187,
+        "touch_x": 94.3,
+        "touch_y": 502.3,
+        "dx": 93.17,
+        "dy": -96.33,
+        "dist_pt": 134.02
+      },
+      {
+        "name": "g_r0c1",
+        "pass": 1,
+        "tx": 187.5,
+        "ty": 406.0,
+        "ax": 41.888,
+        "ay": 87.187,
+        "touch_x": 256.7,
+        "touch_y": 490.3,
+        "dx": -69.17,
+        "dy": -84.33,
+        "dist_pt": 109.07
+      },
+      {
+        "name": "g_r1c0",
+        "pass": 1,
+        "tx": 187.5,
+        "ty": 406.0,
+        "ax": 41.888,
+        "ay": 87.187,
+        "touch_x": 79.0,
+        "touch_y": 527.7,
+        "dx": 108.5,
+        "dy": -121.67,
+        "dist_pt": 163.02
+      },
+      {
+        "name": "g_r1c1",
+        "pass": 1,
+        "tx": 187.5,
+        "ty": 406.0,
+        "ax": 41.888,
+        "ay": 87.187,
+        "touch_x": -1.0,
+        "touch_y": -1.0,
+        "dx": null,
+        "dy": null,
+        "dist_pt": null
+      }
+    ],
+    "applied": false
+  }
+]
