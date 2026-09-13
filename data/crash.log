@@ -1,0 +1,26 @@
+Traceback (most recent call last):
+  File "F:\JXBproject\robot_order_picker_imouse\gui\app.py", line 686, in _append_log
+    if self._log_queue and self._log_queue[-1][0] == key:
+       ^^^^^^^^^^^^^^^
+AttributeError: 'MainWindow' object has no attribute '_log_queue'
+
+Traceback (most recent call last):
+  File "F:\JXBproject\robot_order_picker_imouse\gui\app.py", line 686, in _append_log
+    if self._log_queue and self._log_queue[-1][0] == key:
+       ^^^^^^^^^^^^^^^
+AttributeError: 'MainWindow' object has no attribute '_log_queue'
+
+Traceback (most recent call last):
+  File "F:\JXBproject\robot_order_picker_imouse\gui\app.py", line 893, in on_start
+    self._start_run(setup_first=True, label="启动")
+  File "F:\JXBproject\robot_order_picker_imouse\gui\app.py", line 913, in _start_run
+    self.task = RobotTask(self.store, log=self.log_fn)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "F:\JXBproject\robot_order_picker_imouse\core\flow\task.py", line 326, in __init__
+    self.ctx.on_scan = make_scan_hook(self.ctx, self.scanner)
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "F:\JXBproject\robot_order_picker_imouse\core\flow\task.py", line 81, in make_scan_hook
+    context.scan_pending_hits = pending_hits
+    ^^^^^^^
+NameError: name 'context' is not defined
+

@@ -1,0 +1,11 @@
+{"screen_seq": 11, "img": "20260912_200356_list_screen_0011.jpg", "program_hit": [2], "script_hit": [], "missed": [], "false_positive": [2]}
+{"screen_seq": 17, "img": "20260912_200641_list_screen_0017.jpg", "program_hit": [2], "script_hit": [], "missed": [], "false_positive": [2]}
+{"screen_seq": 37, "img": "20260912_201352_list_screen_0037.jpg", "program_hit": [1, 3], "script_hit": [3], "missed": [], "false_positive": [1]}
+{"screen_seq": 42, "img": "20260912_201539_list_screen_0042.jpg", "program_hit": [2, 3], "script_hit": [3], "missed": [], "false_positive": [2]}
+{"screen_seq": 70, "img": "20260912_202545_list_screen_0070.jpg", "program_hit": [2, 3], "script_hit": [3], "missed": [], "false_positive": [2]}
+{"screen_seq": 106, "img": "20260912_203706_list_screen_0106.jpg", "program_hit": [0, 2], "script_hit": [0, 1, 2], "missed": [1], "false_positive": []}
+{"screen_seq": 118, "img": "20260912_204048_list_screen_0118.jpg", "program_hit": [2], "script_hit": [2, 3], "missed": [3], "false_positive": []}
+{"screen_seq": 127, "img": "20260912_204339_list_screen_0127.jpg", "program_hit": [3], "script_hit": [2, 3], "missed": [2], "false_positive": []}
+{"screen_seq": 145, "img": "20260912_205017_list_screen_0145.jpg", "program_hit": [2, 3], "script_hit": [3], "missed": [], "false_positive": [2]}
+{"screen_seq": 181, "img": "20260912_210302_list_screen_0181.jpg", "program_hit": [0, 3], "script_hit": [3], "missed": [], "false_positive": [0]}
+{"screen_seq": 182, "img": "20260912_210331_list_screen_0182.jpg", "program_hit": [0], "script_hit": [2], "missed": [2], "false_positive": [0]}

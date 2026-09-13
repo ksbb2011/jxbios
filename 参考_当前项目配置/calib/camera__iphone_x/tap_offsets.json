@@ -1,0 +1,15 @@
+{
+  "_note": "逐点落点偏差表。机械臂为悬臂结构，中心与四周偏差不一致，线性标定（x_scale/x_offset）消不掉的那部分靠这张表分区补偿。expect=期望像素, actual=笔尖实际落点, offset=actual-expect。本文件仅 tools/live_click.py 写入，生产链路（core/ gui/）不读取。",
+  "_cleared": "2026-09-08 清空：此前 5 条记录含界面变化导致的帧差法误判（最大 193px），不可信，已作废。",
+  "fast_size": [
+    480,
+    640
+  ],
+  "screen_roi": [
+    87,
+    65,
+    404,
+    571
+  ],
+  "points": []
+}

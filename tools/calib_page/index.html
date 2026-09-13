@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<!-- viewport-fit=cover 让 standalone 模式铺满全屏（含刘海区域），
+     关键约束：校准时可视区必须 == 运满满运行时的可视区。
+     已知坑：Safari 普通标签页有地址栏，window.innerHeight 不固定；必须从主屏
+     standalone 图标打开（iMouse 官方"鼠标参数采集"也是这么做的）。 -->
+<meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="format-detection" content="telephone=no">
+<title>标定页</title>
+<style>
+  html, body {
+    margin: 0; padding: 0; background: #000;
+    width: 100%; height: 100%;
+    overflow: hidden; touch-action: none;
+    -webkit-user-select: none; user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  /* 靶心：80×80 圆，3px 白边，中心 14×14 红点 */
+  #target {
+    position: absolute; width: 80px; height: 80px;
+    margin: -40px 0 0 -40px;
+    border: 3px solid #fff; border-radius: 50%;
+    display: none; pointer-events: none;
+    box-shadow: 0 0 20px rgba(255, 255, 255, 0.4);
+  }
+  #target::after {
+    content: ""; position: absolute;
+    left: 50%; top: 50%;
+    width: 14px; height: 14px; margin: -7px 0 0 -7px;
+    background: #ff3838; border-radius: 50%;
+  }
+  #status {
+    position: fixed; top: env(safe-area-inset-top, 12px);
+    left: 12px; right: 12px;
+    color: #fff; font: 600 15px/1.4 -apple-system, sans-serif;
+    text-align: center;
+    background: rgba(0, 0, 0, 0.55);
+    padding: 10px 12px; border-radius: 10px;
+    z-index: 99; backdrop-filter: blur(8px);
+  }
+  #info {
+    position: fixed; bottom: env(safe-area-inset-bottom, 8px);
+    left: 8px; right: 8px;
+    color: #888; font: 11px/1.4 monospace;
+    text-align: center; z-index: 99;
+  }
+</style>
+</head>
+<body>
+<div id="status">Loading…</div>
+<div id="target"></div>
+<div id="info"></div>
+<script>
+(function () {
+  "use strict";
+  const Q = new URLSearchParams(location.search);
+  const SERVER = Q.get("server") || "";
+  const POINT_ID = parseInt(Q.get("id") || "0", 10);
+  const TX = parseFloat(Q.get("tx") || "0");
+  const TY = parseFloat(Q.get("ty") || "0");
+  const statusEl = document.getElementById("status");
+  const targetEl = document.getElementById("target");
+  const infoEl = document.getElementById("info");
+
+  function setStatus(text, bg) {
+    statusEl.textContent = text;
+    statusEl.style.background = bg || "rgba(0, 0, 0, 0.55)";
+  }
+
+  function showTarget() {
+    targetEl.style.left = TX + "px";
+    targetEl.style.top = TY + "px";
+    targetEl.style.display = "block";
+    setStatus("请触摸白色圆圈中心", "rgba(0, 90, 0, 0.7)");
+    infoEl.textContent = "id=" + POINT_ID +
+      " target=(" + TX.toFixed(1) + ", " + TY.toFixed(1) + ")" +
+      "  viewport=" + innerWidth + "×" + innerHeight +
+      "  dpr=" + devicePixelRatio;
+  }
+
+  async function postTouch(x, y) {
+    try {
+      const r = await fetch(SERVER + "/touch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: POINT_ID, tx: TX, ty: TY, x: x, y: y, t: Date.now(),
+          viewport: [innerWidth, innerHeight],
+        }),
+      });
+      const j = await r.json();
+      if (j.error) {
+        setStatus("错误：" + j.error, "rgba(120, 0, 0, 0.7)");
+        return;
+      }
+      if (j.done) {
+        setStatus("完成。共 " + j.count + " 点，请回到电脑查看结果。",
+                  "rgba(0, 120, 0, 0.85)");
+        targetEl.style.display = "none";
+        return;
+      }
+      if (j.next_url) {
+        setStatus("已记录， + 下一个", "rgba(0, 120, 0, 0.7)");
+        setTimeout(function () { location.href = j.next_url; }, 500);
+      }
+    } catch (e) {
+      setStatus("网络错误：" + e.message, "rgba(120, 0, 0, 0.7)");
+    }
+  }
+
+  function onTouch(e) {
+    e.preventDefault();
+    const t = (e.touches && e.touches[0]) || (e.changedTouches && e.changedTouches[0]);
+    if (!t) return;
+    // 用 pageX/pageY：CSS px = iPhone X 的逻辑点（视口与设备宽度一致时）
+    postTouch(t.pageX, t.pageY);
+  }
+
+  // 整个页面接收触摸事件，确保按到空白也能触发
+  document.addEventListener("touchstart", onTouch, { passive: false });
+  document.addEventListener("touchmove", function (e) { e.preventDefault(); }, { passive: false });
+  document.addEventListener("gesturestart", function (e) { e.preventDefault(); });
+
+  window.addEventListener("load", function () {
+    if (!SERVER) {
+      setStatus("缺少 server 参数， + 请从主机打开本页（不要直接扫码）",
+                "rgba(120, 0, 0, 0.7)");
+      return;
+    }
+    if (POINT_ID === 0 && TX === 0 && TY === 0) {
+      setStatus("等待第一个点…", "rgba(80, 80, 0, 0.7)");
+    } else {
+      showTarget();
+    }
+  });
+})();
+</script>
+</body>
+</html>

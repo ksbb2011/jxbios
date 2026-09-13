@@ -1,0 +1,135 @@
+{
+  "_note": "硬件与标定配置。改这里不需要动任何代码。标定数值由 tools/calibrate_*.py 生成，来自旧工程已验证的实测值。",
+  "device": {
+    "model": "iPhone X",
+    "_note": "手机机型。全机队统一——标定按【取帧源__机型】分目录存放（config/calib/camera__iphone_x/），标定一次全机队通用，换机型时重新标定不串号。",
+    "_note_fullscreen": "iPhone X 无实体 Home 键：App 内返回点左上角箭头，回桌面靠底部上滑手势。现有 calibration.back_key/home_key 是物理按键坐标且 y=155 已超出 arm_range.y 上限 152.64（疑为带实体键的安卓机遗留值），上机必须核对或改为手势。"
+  },
+  "robot": {
+    "name": "1号机械臂",
+    "com": "COM4",
+    "url": "http://127.0.0.1:8082/MyWcfService/getstring",
+    "camera_name": "USB Camera2",
+    "camera_index": 0,
+    "open_retry": 3,
+    "open_wait_sec": 2.0,
+    "auto_recover": true
+  },
+  "service": {
+    "process_name": "JxbService",
+    "restart_before_open": true,
+    "restart_command": "Restart-Service JxbService -Force",
+    "_note": "进程被强杀不会 close_port，WCF 服务会一直占用 COM 口，导致 open_port 返回资源号 0。启动前必须重启。"
+  },
+  "delays": {
+    "open": 1.0,
+    "move": 0.05,
+    "press": 0.08,
+    "release": 0.05,
+    "reset": 1.0,
+    "close": 0.5,
+    "tap_settle": 0.15,
+    "tap_dwell": 0.15,
+    "_note_tap": "tap_settle=move 后等机械臂物理到位稳定再下压；tap_dwell=press 后触屏驻留。两值照抄旧工程 robot_arm.click（实测值 0.15）。缺这俩停留，小目标（返回箭头~18px）在机械臂没停稳、瞬间抬起时电容屏不识别——表现为「点击/滑动压根没生效」。滑动轨迹不需要 tap_dwell（连续 move 已等效驻留）。"
+  },
+  "calibration": {
+    "_note": "坐标映射基准。screen_roi_ratio 是运行时唯一基准，screen_roi 仅为标定帧(480x640)下的像素值，供人读与兼容。",
+    "image_resolution": [
+      540,
+      960
+    ],
+    "camera_rotation": 90,
+    "screen_roi": [
+      87,
+      65,
+      404,
+      571
+    ],
+    "roi_calib_size": [
+      480,
+      640
+    ],
+    "screen_roi_ratio": [
+      0.18125,
+      0.101562,
+      0.841667,
+      0.892188
+    ],
+    "dark_brightness": 12,
+    "arm_range": {
+      "x": [
+        1.61,
+        81.17
+      ],
+      "y": [
+        18.51,
+        152.38
+      ]
+    },
+    "z_press": 6.0,
+    "z_release": 0,
+    "tingdan": {
+      "enabled": true,
+      "region": [
+        0.635,
+        0.144,
+        0.823,
+        0.188
+      ],
+      "red_ratio_threshold": 0.08,
+      "min_red": 90,
+      "red_factor": 1.25,
+      "_note": "听单（自动抢单）开关状态检测。听单开着会自己抢单，扫描前必须关掉，所以判错的代价很高——宁可判成开着去点一下，也不能把开着误判成已关。",
+      "_note_color": "用【红色像素占比】判定而不是模板匹配：两个状态在画面上都是顶部右侧小横条，灰度结构太像，TM_CCOEFF_NORMED 分数贴得很近（实测听单开着时 on=0.60 / off=0.73，off 反而更高），区分不开。颜色差异则是压倒性的：听单中约 25% 红色像素、关状态 0%，零重叠，且不受右侧柱状图标动画影响。",
+      "_note_region": "归一化区域（基于 fast 帧 480x640），取听单状态控件所在位置。由 roi_picker 框选得到，改过摄像头/手机位置后需重新框。",
+      "_note_thr": "red_ratio_threshold=红色像素占比超过多少判定为『听单中』。实测开≈0.25、关≈0.00，取 0.08 留足余量。min_red/red_factor 是单个像素算不算『红』的判据：R 超过 min_red 且明显高过 G、B。"
+    },
+    "press_boost_delta": 0.2,
+    "z_compensation": {
+      "right_ratio": 0.55,
+      "bottom_ratio": 0.7,
+      "right": 0.15,
+      "bottom": 0.15,
+      "corner": 0.3
+    },
+    "x_scale": 1.00649,
+    "x_offset": -0.295,
+    "y_scale": 1.00117,
+    "y_offset": -0.178,
+    "top_y_adjust": 0.0,
+    "pixel_model": {},
+    "rest_pos": null,
+    "back_key": [
+      16.0,
+      26.0
+    ],
+    "_note_back_key": "legacy：带返回键安卓机的物理返回坐标。iPhone X 不使用（无返回键）。iPhone X 返回见 press_back 的手势逻辑（有箭头点箭头，无箭头左边缘右滑）。保留仅作 migrate_assets 兼容。",
+    "home_key": [
+      39.0,
+      152.0
+    ],
+    "_note_home_key": "legacy：带 Home 键安卓机的物理 Home 坐标，iPhone X 不使用（无 Home 键）。iPhone X 回桌面见 home_gesture。保留仅作 migrate_assets 兼容。",
+    "home_gesture": {
+      "type": "swipe_up",
+      "from_ratio": [
+        0.5,
+        0.97
+      ],
+      "to_ratio": [
+        0.5,
+        0.1
+      ],
+      "_note": "iPhone X 回桌面手势：从屏幕底部上滑到顶部（fast 帧归一化坐标 l,t,r,b）。由 ActionKit.press_home 消费；无此配置时回退物理点击 home_key（旧机型）。"
+    },
+    "swipe_start": [
+      36.5,
+      107.1
+    ],
+    "_note_roi_calib": "screen_roi 与 arm_range 由 tools/calibrate_screen_roi.py 标定并按比例同步；改动后必须重跑 calibrate_xy.py 与 calibrate_press.py。",
+    "_note_xy_calib": "由 tools/calibrate_xy.py 实测笔尖落点拟合得出（移植自旧工程 calibrate_xy_fix.py）。此前为单位值/零值，从未标定。改动取帧参数、拆装机械臂或更换笔尖后需重新标定。"
+  },
+  "click": {
+    "jitter_px": 4,
+    "_note": "固定 UI 坐标点击时叠加的随机偏移，避免每次命中同一像素。"
+  }
+}

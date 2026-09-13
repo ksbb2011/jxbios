@@ -1,0 +1,217 @@
+{
+  "_note": "硬件与标定配置。改这里不需要动任何代码。标定数值由 tools/calibrate_*.py 生成，来自旧工程已验证的实测值。",
+  "device": {
+    "model": "iPhone X",
+    "_note": "手机机型。全机队统一——标定按【取帧源__机型】分目录存放（config/calib/camera__iphone_x/），标定一次全机队通用，换机型时重新标定不串号。",
+    "_note_fullscreen": "iPhone X 无实体 Home 键：App 内返回点左上角箭头，回桌面靠底部上滑手势。现有 calibration.back_key/home_key 是物理按键坐标且 y=155 已超出 arm_range.y 上限 152.64（疑为带实体键的安卓机遗留值），上机必须核对或改为手势。"
+  },
+  "robot": {
+    "name": "1号机械臂",
+    "com": "COM4",
+    "url": "http://127.0.0.1:8082/MyWcfService/getstring",
+    "camera_name": "USB Camera2",
+    "camera_index": 0,
+    "open_retry": 3,
+    "open_wait_sec": 2.0,
+    "auto_recover": true
+  },
+  "service": {
+    "process_name": "JxbService",
+    "restart_before_open": true,
+    "restart_command": "Restart-Service JxbService -Force",
+    "_note": "进程被强杀不会 close_port，WCF 服务会一直占用 COM 口，导致 open_port 返回资源号 0。启动前必须重启。"
+  },
+  "delays": {
+    "open": 1.0,
+    "move": 0.05,
+    "press": 0.08,
+    "release": 0.05,
+    "reset": 1.0,
+    "close": 0.5,
+    "tap_settle": 0.15,
+    "tap_dwell": 0.15,
+    "_note_tap": "tap_settle=move 后等机械臂物理到位稳定再下压；tap_dwell=press 后触屏驻留。两值照抄旧工程 robot_arm.click（实测值 0.15）。缺这俩停留，小目标（返回箭头~18px）在机械臂没停稳、瞬间抬起时电容屏不识别——表现为「点击/滑动压根没生效」。滑动轨迹不需要 tap_dwell（连续 move 已等效驻留）。"
+  },
+  "calibration": {
+    "_note": "坐标映射基准。screen_roi_ratio 是运行时唯一基准，screen_roi 仅为标定帧(480x640)下的像素值，供人读与兼容。",
+    "image_resolution": [
+      540,
+      960
+    ],
+    "camera_rotation": 90,
+    "screen_roi": [
+      85,
+      63,
+      406,
+      575
+    ],
+    "roi_calib_size": [
+      480,
+      640
+    ],
+    "screen_roi_ratio": [
+      0.177083,
+      0.098437,
+      0.845833,
+      0.898438
+    ],
+    "dark_brightness": 12,
+    "arm_range": {
+      "x": [
+        10.45,
+        73.32
+      ],
+      "y": [
+        19.41,
+        154.85
+      ]
+    },
+    "_note_arm_range_fixed": "2026-09-10 修正：旧值 x[9.93,73.2]/y[16.62,154.62] 是旧机械臂位置的标定值，机械臂重新就位后 actuation 变了但 arm_range 没同步，导致屏幕左上角（返回箭头 y=62→机械臂 ay=15.5）被错误 clamp 到 y 下限 16.62、落点偏约 15px 点不到返回箭头。新值按当前 actuation 模型屏幕四角映射：x[3.34,66.0]/y[3.48,139.31]（四角：(0,0)→(3.34,5.2)、(375,0)→(65.75,3.48)、(0,812)→(3.93,138.67)、(375,812)→(66.0,139.31)）。机械臂物理行程远大于屏幕（用户确认），此范围仅用于「点在屏幕内」的 clamp。",
+    "z_press": 5.9,
+    "_note_z_press": "⛔ 机械臂下压深度。**Z 越大 = 压得越深，硬上限 6.2，超过会点碎屏幕**（用户 2026-09-09 明确）。取值依据：2026-09-09 用程序轻点全国货源 Tab 实测——z=5.9 稳定触发（白色全国货源→红色列表页）且屏幕无恙，z=5.8 不触发，故最低稳定触发点 = 5.9。5.9 = min_z=5.6（刚能触发）基础上加深 0.3mm，离 6.2 硬顶留 0.3mm 余量。历史错误：曾按「min_z + 上浮1.5」算出 7.1（方向理解反了，加号=继续下压），后又试到 8.5，均已废弃。代码侧 tools/calib_common.py 与 calibrate_screen_arm.py 的 ArmClient.press() 有 Z_HARD_MAX=6.2 硬钳制兜底。",
+    "z_release": 0.0,
+    "tingdan": {
+      "enabled": true,
+      "_note_region_fixed": "2026-09-10 按实采修正：旧 region y=0.144~0.188 落在听单控件下方（实际 y≈0.057~0.108），红色像素占比采到的是空白区，会把「听单开着」误判为已关——扫描前关听单失效，而听单开着会自己抢单，代价很高（宁可判成开着去点一下）。新值来自 register_template 采到的控件框，重采后若框更准再微调。",
+      "region": [
+        0.712,
+        0.0567,
+        0.9813,
+        0.1084
+      ],
+      "red_ratio_threshold": 0.08,
+      "min_red": 90,
+      "red_factor": 1.25,
+      "_note": "听单（自动抢单）开关状态检测。听单开着会自己抢单，扫描前必须关掉，所以判错的代价很高——宁可判成开着去点一下，也不能把开着误判成已关。",
+      "_note_color": "用【红色像素占比】判定而不是模板匹配：两个状态在画面上都是顶部右侧小横条，灰度结构太像，TM_CCOEFF_NORMED 分数贴得很近（实测听单开着时 on=0.60 / off=0.73，off 反而更高），区分不开。颜色差异则是压倒性的：听单中约 25% 红色像素、关状态 0%，零重叠，且不受右侧柱状图标动画影响。",
+      "_note_region": "归一化区域（基于 fast 帧 480x640），取听单状态控件所在位置。由 roi_picker 框选得到，改过摄像头/手机位置后需重新框。",
+      "_note_thr": "red_ratio_threshold=红色像素占比超过多少判定为『听单中』。实测开≈0.25、关≈0.00，取 0.08 留足余量。min_red/red_factor 是单个像素算不算『红』的判据：R 超过 min_red 且明显高过 G、B。"
+    },
+    "press_boost_delta": 0.2,
+    "z_compensation": {
+      "right_ratio": 0.55,
+      "bottom_ratio": 0.7,
+      "right": 0.15,
+      "bottom": 0.15,
+      "corner": 0.3
+    },
+    "x_scale": 1.00527,
+    "x_offset": -0.657,
+    "y_scale": 0.99989,
+    "y_offset": -0.36,
+    "top_y_adjust": 0.0,
+    "pixel_model": {},
+    "rest_pos": null,
+    "back_key": [
+      16.0,
+      26.0
+    ],
+    "_note_back_key": "legacy：带返回键安卓机的物理返回坐标。iPhone X 不使用（无返回键）。iPhone X 返回见 press_back 的手势逻辑（有箭头点箭头，无箭头左边缘右滑）。保留仅作 migrate_assets 兼容。",
+    "home_key": [
+      39.0,
+      152.0
+    ],
+    "_note_home_key": "legacy：带 Home 键安卓机的物理 Home 坐标，iPhone X 不使用（无 Home 键）。iPhone X 回桌面见 home_gesture。保留仅作 migrate_assets 兼容。",
+    "home_gesture": {
+      "type": "swipe_up",
+      "from_ratio": [
+        0.5,
+        0.97
+      ],
+      "to_ratio": [
+        0.5,
+        0.1
+      ],
+      "_note": "iPhone X 回桌面手势：从屏幕底部上滑到顶部（fast 帧归一化坐标 l,t,r,b）。由 ActionKit.press_home 消费；无此配置时回退物理点击 home_key（旧机型）。"
+    },
+    "swipe_start": [
+      36.5,
+      107.1
+    ],
+    "_note_roi_calib": "screen_roi 与 arm_range 由 tools/calibrate_screen_roi.py 标定并按比例同步；改动后必须重跑 calibrate_xy.py 与 calibrate_press.py。",
+    "_note_xy_calib": "由 tools/calibrate_xy.py 实测笔尖落点拟合得出（移植自旧工程 calibrate_xy_fix.py）。此前为单位值/零值，从未标定。改动取帧参数、拆装机械臂或更换笔尖后需重新标定。",
+    "z_calibration": {
+      "min_z": 5.6,
+      "up_float_mm": 0.3,
+      "z_hard_max": 6.2,
+      "scanned_at": "2026-09-09T16:40:26",
+      "method": "scan_dwell_then_lift",
+      "_note": "min_z=5.6 是扫描出的「最轻触发深度」（Z 越大越深）。z_hard_max=6.2 是碎屏红线。2026-09-09 程序轻点实测：z=5.9 稳定触发（白色全国货源→红色列表页）且屏无恙，z=5.8 不触发，故最低稳定触发点 = 5.9，up_float_mm 由 0.4 收紧到 0.3（5.6+0.3）。可用窗口仅 0.6mm，余量极小，勿再上调。"
+    },
+    "actuation": {
+      "model": "bilinear",
+      "ax": [
+        10.449058000173453,
+        62.168221899725296,
+        0.7139625760282868,
+        -0.007836017238282977
+      ],
+      "ay": [
+        19.798847352492405,
+        -0.3885250072444393,
+        135.05201191755398,
+        0.22642480930913678
+      ],
+      "max_error_pt": 1.529,
+      "calibrated_at": "2026-09-13T17:33:53",
+      "report": {
+        "fit_samples": 64,
+        "verify_samples": 16,
+        "mean_err_pt": 0.843,
+        "max_err_pt": 1.529,
+        "worst": {
+          "tx": 225.87913695611357,
+          "ty": 225.0792534677723,
+          "touch_x": 224.52026754310094,
+          "touch_y": 225.77927694170558,
+          "dx": -1.358869413012627,
+          "dy": 0.7000234739332711
+        },
+        "method": "ink_dot_screenshot"
+      }
+    },
+    "tap_correction": {
+      "enabled": true,
+      "radius_px": 40,
+      "points": [
+        {
+          "name": "city_clear",
+          "x": 98.0,
+          "y": 764.0,
+          "dx": -6.0,
+          "dy": 0.0,
+          "src": "ui_tap_calib"
+        },
+        {
+          "name": "city_confirm",
+          "x": 278.0,
+          "y": 764.0,
+          "dx": -6.0,
+          "dy": 1.0,
+          "src": "ui_tap_calib"
+        },
+        {
+          "name": "back_to_top",
+          "x": 187.0,
+          "y": 753.0,
+          "dx": -7.0,
+          "dy": -1.0,
+          "src": "ui_tap_calib"
+        },
+        {
+          "name": "source_red",
+          "x": 187.0,
+          "y": 755.0,
+          "dx": -7.0,
+          "dy": 0.0,
+          "src": "ui_tap_calib"
+        }
+      ],
+      "_note": "UI 落点残差补偿（2026-09-13 新增）。数据来自 tools/calibrate_tap_ui.py 的实测：期望点未触发、把点击点偏移后即生效，偏移量记在 data/ui_tap_calib.json。\n为什么需要：墨点标定的画布只覆盖 y≈170~660（备忘录上下被按钮栏遮挡，无法留墨），屏幕底部按钮行（清空筛选/确认/返回顶部）只能靠模型外推，实测统一偏左 6~7pt。\n规则：点击点与某锚点距离 ≤ radius_px 时，套用该锚点的 (dx,dy)（取最近的一个）；命中与套用都会写进日志。detail_back 实测 (0,-1) 无需补偿，故不在表内。\n关闭开关：把 enabled 改为 false 即可整体停用。"
+    }
+  },
+  "click": {
+    "jitter_px": 4,
+    "_note": "固定 UI 坐标点击时叠加的随机偏移，避免每次命中同一像素。"
+  }
+}

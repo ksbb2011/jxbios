@@ -1,0 +1,95 @@
+{
+  "_note": "视觉采集与识别参数。分辨率与 OCR 模型都在这里切换，主程序不硬编码任何一项。",
+  "capture": {
+    "_note": "一次采集双流处理：按 capture_resolution 采一帧，再 resize 出 fast_size 的快帧。候选分辨率必须是 roi_calib_size 的 3:4 同比例整数倍，否则 screen_roi 非等比拉伸会导致点击偏移。",
+    "capture_resolution": [
+      375,
+      812
+    ],
+    "candidates": [
+      [
+        375,
+        812
+      ]
+    ],
+    "fast_size": [
+      375,
+      812
+    ],
+    "_note_imouse": "投屏版：iMouse 原生截图按手机逻辑点 375x812 工作，fast 帧即逻辑点空间，模板与归一化 ROI 均基于此，故 capture_resolution 与 fast_size 取相同值（比例 1，raw/fast 换算无风险）。待 tools/imouse_probe.py 实测 imgw/imgh 后，若 OCR 要走更高清的原生流，再把 capture_resolution 改为实测原生像素并同步把 streams.ocr_stream 切回 raw。",
+    "fast_interpolation": "INTER_AREA",
+    "require_same_aspect": false,
+    "base_aspect": [
+      3,
+      4
+    ],
+    "_note_aspect_imouse": "投屏版无 screen_roi 与摄像头 3:4 约束，同比例校验关闭（base_aspect 仅作历史留档）。",
+    "camera_rotation": 90,
+    "camera_fps": 30,
+    "decided_by": "tools/imouse_probe.py",
+    "decided": true,
+    "source": "imouse",
+    "letterbox": "none",
+    "video_latency_ms": 0,
+    "_note_source": "取帧源：camera=摄像头（当前默认）；capture_card=HDMI 采集卡（iPhone X --Lightning--> Apple Digital AV Adapter --HDMI--> 采集卡 --USB--> PC）。采集卡在 Windows 上就是 UVC 设备，复用 Camera 实现，仅靠本项 + letterbox + video_latency_ms 三项配置区分行为。**切换取帧源后所有标定必须重做**（亮度分布、分辨率、黑边全变）。",
+    "_note_letterbox": "黑边处理：none=不处理（摄像头）；auto=自动裁掉四周纯黑边（采集卡必须用——iPhone X 是 1125x2436，经 AV Adapter 输出 1080p 横屏信号，竖屏画面两侧各约 710px 纯黑边；不裁会导致归一化 ROI 全错、模板在黑边上刷噪声）。",
+    "_note_latency": "取帧链路延迟（毫秒）。摄像头约 0；HDMI 采集卡约 100~200（AV Adapter 30ms + USB 传输）。点击/滑动后的等待时长 = delays.click_after + 该值，防止取到动作发生前的旧画面。"
+  },
+  "streams": {
+    "_note": "两类任务用不同流：判定类走快帧（模板零重采），识别类走原始高分辨率帧的 ROI 裁剪。",
+    "match_stream": "fast",
+    "page_state_stream": "fast",
+    "fast_scan_stream": "fast",
+    "ocr_stream": "fast",
+    "ocr_use_roi_crop": true,
+    "coordinate_stream": "fast"
+  },
+  "ocr": {
+    "backend": "rapid",
+    "backends": [
+      "rapid",
+      "paddle-cpu",
+      "paddle-gpu"
+    ],
+    "det_limit_side_len": 512,
+    "rec_batch_mode": true,
+    "conf_threshold": 0.5,
+    "dedup_frame": true,
+    "dedup_thresh": 4.0,
+    "superres_enabled": false,
+    "_note_superres": "OCR 前 2 倍超分已在旧工程实测：12 张列表图零差异且更慢，默认关闭。",
+    "_note_det_limit": "RapidOCR 默认把图放大到短边 960 才检测，是 CPU 上 OCR 慢的主因；锁到 640 提速约 10% 且结果一致。2026-09-10 基准实测（tools/_bench_ocr.py，详情页帧）：640=1763ms / 512=1552ms / 480=1643ms / 416=1481ms，512 识别无损（38 文本）且快 12%，416 更快但防小字漏检风险未取，定 512。"
+  },
+  "preprocess": {
+    "_note": "判定前的画面预处理。每一项都必须先用回归集跑 A/B 验证有效才能开，默认全关。",
+    "clahe": {
+      "enabled": false,
+      "clip_limit": 2.0,
+      "tile_grid": [
+        8,
+        8
+      ],
+      "_note": "自适应直方图均衡（只均衡 LAB 亮度通道，保留颜色）。动机：环境光变化让同一页面的模板分数整体浮动，早晚/阴晴判定结果可能不一致。",
+      "_note_ab": "**实测结论（2026-09-04）：本工程禁用 CLAHE。** 用 403 张回归集跑 A/B：关闭时 detail 175/226 = 77.4%；开启后 detail 只剩 11/226 = 4.9%（210 张判成 UNKNOWN）。原因：模板是在原始图像分布下采集的，均衡后匹配分数大幅下降。除非将来连同全部模板一起重采并重新标定所有阈值，否则不要再试——凭手感开会把准确率打掉 16 倍。"
+    }
+  },
+  "matcher": {
+    "scales": [
+      1.0
+    ],
+    "_note_scales_imouse": "投屏版画面尺寸固定（无透视/无镜头缩放），模板与帧同为逻辑点空间，1.0 单尺度即可；多尺度只会增加耗时与误匹配风险。若换机型或改投屏分辨率需重新采集模板，不要靠多尺度兜。",
+    "cache_pyramid": true,
+    "max_templates_per_frame": 8,
+    "method": "TM_CCOEFF_NORMED"
+  },
+  "fast_scan": {
+    "enabled": true,
+    "method": "edge",
+    "dark_brightness": 12,
+    "min_edge_density": 0.01,
+    "min_std": 8.0,
+    "_note": "扫描前先判断这屏有没有内容，无内容直接滑动跳过最耗时的整屏 OCR，这是速度关键。",
+    "_note_method": "brightness=纯亮度判断；edge=边缘密度+灰度标准差（推荐）。",
+    "_note_edge": "为什么不用纯亮度：深色主题/夜间模式/压暗过渡帧亮度都低但有内容，白屏加载页亮度高却没内容——亮度既会漏也会误。边缘密度（Canny 非零点占比）与灰度标准差更贴近「有内容」：文字图标产生大量边缘，纯色画面 std 极低。Canny 在 480x640 上约 1~2ms，相对整屏 OCR（数百毫秒）可忽略。"
+  }
+}

@@ -1,0 +1,552 @@
+{
+  "_note": "模板注册表：主程序只按逻辑名取模板，绝不写死路径。新增或替换模板只需改本文件的 path/alt，不动一行代码。roi 为归一化坐标 [l,t,r,b]，null 表示全屏。",
+  "template_dir": "data/templates",
+  "items": {
+    "desktop_ymm_icon": {
+      "path": "flow/01_desktop_ymm_icon.png",
+      "alt": [],
+      "kind": "icon",
+      "threshold_key": "desktop_icon",
+      "roi": [
+        0.1917,
+        0.5877,
+        0.3792,
+        0.7202
+      ],
+      "scales": [
+        0.6,
+        0.75,
+        0.9,
+        1.0,
+        1.15,
+        1.35,
+        1.6
+      ],
+      "purpose": "手机桌面运满满图标，命中即桌面态",
+      "enabled": true,
+      "threshold": 0.85,
+      "match_mode": "gray"
+    },
+    "source_red": {
+      "path": "flow/02_source_red.png",
+      "alt": [
+        "flow/02_source_red_alt.png",
+        "flow/source_red_live.png"
+      ],
+      "kind": "icon",
+      "threshold_key": null,
+      "threshold": 0.88,
+      "roi": [
+        0.4688,
+        0.8034,
+        0.5479,
+        0.8684
+      ],
+      "purpose": "底部红色全国货源 Tab，命中即订单列表页。2026-09-05 实测修正：原 roi y上界0.76 包含列表卡片区的红色「去抢单」按钮，导致新货页也误命中0.618；收紧到0.82只含Tab栏。且必须配合重采：模板老化后真列表页也只有0.79（阈值0.88不过线）",
+      "enabled": true,
+      "match_mode": "gray"
+    },
+    "source_white": {
+      "path": "flow/02_source_white.png",
+      "alt": [
+        "flow/02_source_white_alt2.png"
+      ],
+      "kind": "icon",
+      "threshold_key": null,
+      "threshold": 0.88,
+      "roi": [
+        0.4646,
+        0.8045,
+        0.55,
+        0.872
+      ],
+      "purpose": "底部白色全国货源 Tab，命中说明在首页非列表（如新货Tab），需点击回列表。2026-09-05 修正：原 roi 全宽 [0,0.86,1,1]，其他位置的白色图标也会命中；收紧到中间Tab位。且模板已老化——新货页（白车就在ROI内）实测仅0.49，必须重采",
+      "enabled": true,
+      "match_mode": "gray"
+    },
+    "back_to_top": {
+      "path": "flow/05_back_to_top.png",
+      "alt": [
+        "flow\\back_to_top_live.png"
+      ],
+      "kind": "icon",
+      "threshold_key": null,
+      "threshold": 0.88,
+      "roi": [
+        0.4708,
+        0.8045,
+        0.5521,
+        0.872
+      ],
+      "purpose": "列表深滚后的红色返回顶部按钮（右下角，略高于底部红色Tab），命中即列表页",
+      "enabled": true,
+      "match_mode": "gray"
+    },
+    "eol_recommended": {
+      "path": "flow/05_eol_recommended.png",
+      "alt": [],
+      "kind": "text",
+      "threshold_key": "eol_recommended",
+      "roi": [
+        0.3333,
+        0.5737,
+        0.6833,
+        0.6637
+      ],
+      "purpose": "列表底部推荐货源标识，权威到底信号",
+      "enabled": true,
+      "threshold": 0.88,
+      "match_mode": "gray"
+    },
+    "tingdan_off": {
+      "path": "flow/02_tingdan_off.png",
+      "alt": [
+        "flow\\tingdan_off_live.png"
+      ],
+      "kind": "icon",
+      "threshold_key": null,
+      "threshold": 0.88,
+      "roi": [
+        0.6458,
+        0.1352,
+        0.8167,
+        0.1977
+      ],
+      "purpose": "右上角听单关闭态；命中说明列表顶部隐藏区已显示",
+      "enabled": true,
+      "match_mode": "gray"
+    },
+    "tingdan_on": {
+      "path": "flow/02_tingdan_on.png",
+      "alt": [
+        "flow\\tingdan_on_live.png"
+      ],
+      "kind": "icon",
+      "threshold_key": null,
+      "threshold": 0.88,
+      "roi": [
+        0.65,
+        0.1367,
+        0.825,
+        0.1992
+      ],
+      "purpose": "右上角听单开启态，命中需点击关闭",
+      "enabled": true,
+      "match_mode": "gray"
+    },
+    "top_visible": {
+      "path": "_new/采集_191520.png",
+      "alt": [],
+      "kind": "icon",
+      "threshold_key": "top_visible",
+      "roi": [
+        0.0,
+        0.04,
+        0.75,
+        0.28
+      ],
+      "purpose": "列表顶部可见性标志；未命中说明顶部区被隐藏，需下滑展开",
+      "enabled": true
+    },
+    "detail_back": {
+      "path": "flow/detail_back_live.png",
+      "alt": [
+        "flow/04_detail_back_v1.png",
+        "flow/04_detail_back_v2.png",
+        "flow/04_detail_back_v3.png",
+        "flow/04_detail_back_cold.png",
+        "flow\\detail_back_live.png",
+        "flow/detail_back_var124.png",
+        "flow/detail_back_live_yellow.png"
+      ],
+      "kind": "icon",
+      "threshold_key": null,
+      "threshold": 0.88,
+      "roi": [
+        0.6608,
+        0.1309,
+        0.8475,
+        0.1988
+      ],
+      "purpose": "详情页左上返回箭头；必须与 detail_share 同时命中才算详情页",
+      "enabled": true,
+      "match_mode": "shape"
+    },
+    "detail_share": {
+      "path": "flow/detail_share_live.png",
+      "alt": [
+        "flow/04_detail_share_v2.png",
+        "flow/04_detail_share_v3.png",
+        "flow/04_detail_share_cold.png",
+        "flow/04_detail_share_blue.png",
+        "flow\\detail_share_live.png",
+        "flow/detail_share_live_yellow.png"
+      ],
+      "kind": "icon",
+      "threshold_key": null,
+      "threshold": 0.88,
+      "roi": [
+        0.7688,
+        0.1341,
+        0.8104,
+        0.1941
+      ],
+      "purpose": "详情页右上分享；与 detail_back 同时命中才算详情页（不是或）",
+      "enabled": true,
+      "match_mode": "shape"
+    },
+    "detail_header": {
+      "path": "flow/04_detail_header.png",
+      "alt": [],
+      "kind": "icon",
+      "threshold_key": null,
+      "threshold": 0.88,
+      "roi": [
+        0.6,
+        0.0,
+        1.0,
+        0.16
+      ],
+      "purpose": "详情页右上角图标区，早期判定用，仅作辅助",
+      "enabled": false
+    },
+    "chat_voice": {
+      "path": "flow/04_chat_voice.png",
+      "alt": [],
+      "kind": "icon",
+      "threshold_key": null,
+      "threshold": 0.8,
+      "roi": null,
+      "purpose": "聊天页专属语音发送按钮；聊天页唯一可靠判据（详情页返回箭头与聊天返回箭头无法区分）",
+      "enabled": true
+    },
+    "chat_back": {
+      "path": "flow/04_chat_back.png",
+      "alt": [],
+      "kind": "icon",
+      "threshold_key": null,
+      "threshold": 0.88,
+      "roi": [
+        0.0,
+        0.0,
+        0.32,
+        0.14
+      ],
+      "purpose": "聊天页返回箭头，用于从聊天退回详情",
+      "enabled": true
+    },
+    "filter_clear": {
+      "path": "_new/采集_清空筛选_20260906.png",
+      "alt": [],
+      "kind": "icon",
+      "threshold_key": null,
+      "threshold": 0.83,
+      "roi": [
+        0.0,
+        0.78,
+        0.5,
+        1.0
+      ],
+      "purpose": "筛选页左下清空筛选；与确认同时命中才判为筛选页",
+      "enabled": true
+    },
+    "filter_confirm_red": {
+      "path": "_new/采集_确认红_20260906.png",
+      "alt": [],
+      "kind": "icon",
+      "threshold_key": null,
+      "threshold": 0.83,
+      "roi": [
+        0.5,
+        0.78,
+        1.0,
+        1.0
+      ],
+      "purpose": "筛选页右下正红确认，已选地区非空时可点",
+      "enabled": true
+    },
+    "filter_confirm_pale": {
+      "path": "_new/采集_001437.png",
+      "alt": [],
+      "kind": "icon",
+      "threshold_key": null,
+      "threshold": 0.8,
+      "roi": [
+        0.5,
+        0.78,
+        1.0,
+        1.0
+      ],
+      "purpose": "筛选页右下浅红确认，未选城市不可点；此时只能点顶部红字退出",
+      "enabled": true
+    },
+    "entry_anchor": {
+      "path": "flow/smart_sort.png",
+      "alt": [],
+      "kind": "text",
+      "threshold_key": "entry_anchor",
+      "roi": [
+        0.0,
+        0.05,
+        1.0,
+        0.45
+      ],
+      "purpose": "智能排序锚点（2026-09-06 重采自摄像头 smart_sort.png，shape 模式），用于定位出发地/目的地入口（中心 cx-122 为出发地，cx-64 为目的地）",
+      "enabled": true,
+      "match_mode": "shape"
+    },
+    "city_back": {
+      "path": "_new/采集_164641.png",
+      "alt": [],
+      "kind": "icon",
+      "threshold_key": null,
+      "threshold": 0.88,
+      "roi": [
+        0.0,
+        0.84,
+        1.0,
+        1.0
+      ],
+      "purpose": "城市选择器返回上一级",
+      "enabled": true
+    },
+    "city_confirm": {
+      "path": "_new/采集_164910.png",
+      "alt": [],
+      "kind": "icon",
+      "threshold_key": null,
+      "threshold": 0.88,
+      "roi": [
+        0.5,
+        0.84,
+        1.0,
+        1.0
+      ],
+      "purpose": "城市选择器确认按钮（历史教训：该模板曾误匹配底部 Tab，优先用 OCR 文本定位确认）",
+      "enabled": true
+    },
+    "city_clear": {
+      "path": "_new/采集_163555.png",
+      "alt": [],
+      "kind": "icon",
+      "threshold_key": null,
+      "threshold": 0.88,
+      "roi": [
+        0.0,
+        0.84,
+        0.5,
+        1.0
+      ],
+      "purpose": "城市选择器清空筛选",
+      "enabled": true
+    },
+    "history_zone": {
+      "path": "_new/采集_162659.png",
+      "alt": [],
+      "kind": "icon",
+      "threshold_key": null,
+      "threshold": 0.8,
+      "roi": [
+        0.0,
+        0.05,
+        1.0,
+        0.5
+      ],
+      "purpose": "历史定位区，路线已选时的入口兜底定位",
+      "enabled": true
+    },
+    "origin_popup": {
+      "path": "_new/采集_163111.png",
+      "alt": [],
+      "kind": "icon",
+      "threshold_key": null,
+      "threshold": 0.8,
+      "roi": null,
+      "purpose": "出发地弹出（省市区网格）",
+      "enabled": true
+    },
+    "dest_arrow": {
+      "path": "_new/采集_165041.png",
+      "alt": [],
+      "kind": "icon",
+      "threshold_key": null,
+      "threshold": 0.8,
+      "roi": null,
+      "purpose": "目的地箭头入口",
+      "enabled": true
+    },
+    "overlay_back": {
+      "path": "_new/采集_222134.png",
+      "alt": [],
+      "kind": "icon",
+      "threshold_key": null,
+      "threshold": 0.88,
+      "roi": null,
+      "purpose": "覆盖层/遮挡页返回箭头",
+      "enabled": true
+    },
+    "back_arrow_top_left": {
+      "path": "_new/back_arrow_top_left.png",
+      "alt": [],
+      "kind": "icon",
+      "threshold_key": null,
+      "threshold": 0.88,
+      "roi": [
+        0.0,
+        0.0,
+        0.32,
+        0.14
+      ],
+      "purpose": "通用左上角返回箭头候选",
+      "enabled": true
+    },
+    "dialog_offline": {
+      "path": "flow/99_dialog_offline.png",
+      "alt": [],
+      "kind": "icon",
+      "threshold_key": "dialog_body",
+      "roi": null,
+      "purpose": "该货源已下架弹窗主体",
+      "enabled": true
+    },
+    "dialog_grabbed": {
+      "_withdrawn": "2026-09-05 曾按新弹窗重采变体 flow/dialog_grabbed_live.png，随即撤回：该模板内容是两行小字（该货源已被抢/货源已定），灰度分布与详情页地址行几乎一致，实测在**正常详情页**上误命中 0.979（>body_high 0.9，会让 page_state 把正常详情判成 DIALOG_DETAIL）。结论：文字类弹窗标题**不可用模板匹配**做判据，改用 OCR 文字判据（见 detail.py::_dismiss_detail_dialog）。",
+      "path": "flow/99_dialog_grabbed.png",
+      "alt": [],
+      "kind": "icon",
+      "threshold_key": "dialog_body",
+      "roi": null,
+      "purpose": "该货源已被抢弹窗横条（局部模板，勿用整弹窗 grabbed_full 作变体：在详情页误命中 p50=0.866）",
+      "enabled": true
+    },
+    "dialog_know": {
+      "path": "flow/99_detail_know.png",
+      "alt": [],
+      "kind": "icon",
+      "threshold_key": "dialog_body",
+      "roi": null,
+      "purpose": "详情页我知道了提示弹窗",
+      "enabled": true
+    },
+    "offline_close": {
+      "path": "flow/99_dialog_offline_close.png",
+      "alt": [],
+      "kind": "icon",
+      "threshold_key": null,
+      "threshold": 0.88,
+      "roi": null,
+      "purpose": "该货源已下架弹窗的关闭按钮（如「我知道了」/确定）；采集前为占位，待用户截图采集后启用",
+      "enabled": false,
+      "match_mode": "shape"
+    },
+    "grabbed_close": {
+      "path": "flow/99_dialog_grabbed_close.png",
+      "alt": [],
+      "kind": "icon",
+      "threshold_key": null,
+      "threshold": 0.88,
+      "roi": null,
+      "purpose": "该货源已被抢弹窗的关闭按钮（如「我知道了」/确定）；采集前为占位，待用户截图采集后启用",
+      "enabled": false,
+      "match_mode": "shape"
+    },
+    "page_add_route": {
+      "path": "flow/99_page_add_route.png",
+      "alt": [],
+      "kind": "icon",
+      "threshold_key": null,
+      "threshold": 0.85,
+      "roi": null,
+      "purpose": "添加常用线路异常页主体",
+      "enabled": true
+    },
+    "page_add_route_back": {
+      "path": "flow/99_page_add_route_back.png",
+      "alt": [],
+      "kind": "icon",
+      "threshold_key": null,
+      "threshold": 0.88,
+      "roi": null,
+      "purpose": "添加线路页返回按钮，未知页关闭候选",
+      "enabled": true
+    },
+    "close_x": {
+      "_withdrawn": "2026-09-05 曾追加变体 flow/close_x_live.png，随即撤回：它在正常详情页上匹配到 0.803（位置 (384,304)，并非关闭按钮），刚过 0.80 阈值，会让 click_close_candidate 点到错误控件。",
+      "path": "flow/99_dialog_close_x.png",
+      "alt": [],
+      "kind": "icon",
+      "threshold_key": null,
+      "threshold": 0.8,
+      "roi": null,
+      "purpose": "弹窗右上角 X，通用关闭候选之一",
+      "enabled": true
+    },
+    "offline_back": {
+      "path": "flow/99_dialog_offline_back.png",
+      "alt": [],
+      "kind": "icon",
+      "threshold_key": null,
+      "threshold": 0.8,
+      "roi": null,
+      "purpose": "下架弹窗的返回关闭按钮，未知页关闭候选之一",
+      "enabled": true
+    },
+    "settle_anchor": {
+      "path": "settle_anchor.png",
+      "alt": [],
+      "kind": "text",
+      "threshold_key": null,
+      "threshold": 0.72,
+      "roi": null,
+      "purpose": "列表页结算行锚点，与头像行配对用于切分订单卡片",
+      "enabled": true
+    },
+    "dianyi_tag": {
+      "path": "_new/采集_141748.png",
+      "alt": [],
+      "kind": "text",
+      "threshold_key": "dianyi_tag",
+      "roi": null,
+      "purpose": "电议灰底标签，图色比对识别（文字类，不走 0.88 铁律）",
+      "enabled": true
+    },
+    "smart_sort": {
+      "path": "flow/smart_sort.png",
+      "alt": [],
+      "kind": "icon",
+      "threshold_key": null,
+      "threshold": 0.88,
+      "roi": [
+        0.5125,
+        0.1608,
+        0.7146,
+        0.2783
+      ],
+      "purpose": "采集自摄像头（2026-09-06）",
+      "enabled": true,
+      "match_mode": "shape"
+    },
+    "page_marker": {
+      "path": "flow/page_marker.png",
+      "alt": [],
+      "kind": "icon",
+      "threshold_key": null,
+      "threshold": 0.88,
+      "roi": [
+        0.4146,
+        0.5045,
+        0.6062,
+        0.622
+      ],
+      "purpose": "采集自摄像头（2026-09-06）",
+      "enabled": true,
+      "match_mode": "gray"
+    }
+  },
+  "close_candidates": [
+    "close_x",
+    "offline_back",
+    "page_add_route_back"
+  ],
+  "_note_close": "未知页与弹窗的关闭按钮候选，全屏找取分数最高且达阈值者点击，绝不取第一个命中。back_arrow_top_left 是页面级返回箭头，在详情/列表页 100% 命中、无区分信息量，禁止用作关闭信号（否则会把正常页面点退）。"
+}

@@ -1,0 +1,363 @@
+{
+  "_note": "运行时行为参数。热重载后立即生效，不需要重启。",
+  "loop": {
+    "frame_interval_sec": 0.35,
+    "scan_cooldown_sec": 1.0,
+    "desktop_enter_wait_sec": 8.0,
+    "startup_warmup_sec": 2.0,
+    "unknown_settle_sec": 2.0,
+    "_note_scan": "扫描冷却：主循环每 0.2s 判定一次，但整屏 OCR 很贵，列表页每 scan_cooldown_sec 才扫一次；没命中就上滑一屏继续。",
+    "_note_unknown": "未知页任何手势前先静置重判一次，规避页面加载过渡期模板分数短暂跌破阈值导致的误判误滑。"
+  },
+  "dry_run": true,
+  "_note_dry_run": "**试运行模式（默认开启）**：全流程照跑（扫描 / 切卡 / 判定 / 进详情 / 算单价），但**不点抢单**，只记录『这单会抢 / 不抢 + 原因』并计入 dry_run_would_grab。这是防止正式测试误抢真单的最后一道保险——先跑 1~2 小时人工核对命中准确率，确认无误后**必须显式改为 false** 才会真正抢单。",
+  "review_mode": true,
+  "_note_review_mode": "**审核模式（默认开启）**：详情页判定合格后**不抢单、不返回**，暂停停在详情页等待人工确认（GUI 点『继续找单』才回列表）。这是 v0.1 上机验证期的主模式——机器臂停在合格候选详情页，人看一眼决定。关掉后才会按 dry_run/grab_guard 真正抢单。",
+  "no_pause_test": false,
+  "_note_no_pause_test": "**不停止测试模式**：开启后，详情页判定合格的候选**不暂停、不抢单**，仅等待 2 秒后自动返回列表继续扫单。用于『跑一轮看命中是否准确』又不想每次手动点继续——配合 dry_run 用最安全（绝不会误抢）。关掉后回到正常审核暂停。",
+  "schedule": {
+    "enabled": false,
+    "work_hours": [
+      [
+        7,
+        22
+      ]
+    ],
+    "rest_every_min": 45,
+    "rest_range_sec": [
+      60,
+      300
+    ],
+    "_note": "时间限制规则已关闭(enabled=false)：不限制运行时段、不定时休息，全天候连续运行。需要恢复反风控时段限制时把 enabled 改回 true。下方 work_hours/rest_* 仍保留原值以便随时启用。",
+    "_note_hours": "work_hours 为 [[起始小时, 结束小时], ...]，24 小时制、结束小时不含。例如 [[7,12],[14,22]] 表示中午停工两小时。留空数组表示不限时段。",
+    "_note_rest": "休息时长在 rest_range_sec 区间内随机取，避免形成固定周期。休息期间 stop_event 仍可中断。"
+  },
+  "limits": {
+    "desktop_click_max": 3,
+    "desktop_fail_pause_sec": 60,
+    "dialog_max_streak": 5,
+    "recover_max": 3,
+    "same_screen_streak": 5,
+    "max_swipes_per_round": 20,
+    "setup_enter_fail_max": 3,
+    "click_cooldown_sec": 60
+  },
+  "swipe": {
+    "up_distance_ratio_range": [
+      0.28,
+      0.364
+    ],
+    "amplitude_multiplier": [
+      0.9,
+      1.1
+    ],
+    "down_distance_ratio": 0.25,
+    "left_distance_ratio": 0.667,
+    "back_gesture_duration_ms_range": [
+      250,
+      350
+    ],
+    "duration_ms_range": [
+      490,
+      700
+    ],
+    "step_interval_ms": 16,
+    "press_settle_ms": 60,
+    "release_settle_ms": 120,
+    "bezier_points": 24,
+    "jitter_px": 6,
+    "point_jitter_arm": 0.15,
+    "back_to_home_after": true,
+    "invert_y": false,
+    "invert_x": false,
+    "_note_left": "未知页/返回手势：手指从屏幕左边缘出发，向右滑 2/3 屏宽（iOS 返回手势，不是向左滑）。",
+    "_note_back_gesture": "右滑返回手势用独立的快速时长（250~350ms）：iOS 把慢速滑动识别为拖拽，600~1000ms 会把页面拖出一半又弹回（实测「卡顿、搓屏幕」），在弹窗页上还会横切进相邻详情。普通上下滑仍走慢速 duration_ms_range（防风控）。",
+    "_note_overlap": "上滑实际幅度 = 基准 up_distance_ratio_range × amplitude_multiplier。2026-09-06 砍半：multiplier 1.7~2.3→0.85~1.15。2026-09-07 再砍到 0.20~0.26（实约 0.18~0.29 屏高），但实测偏短（约 1.6 张卡/次，扫得慢），同日按用户要求 ×1.4 → 0.28~0.364，实约 0.25~0.40 屏高（典型 0.32，约 2.2 张卡/次）。duration_ms_range 同步 ×1.4（350~500→490~700）：**距离与时长同比例放大才能保持速度不变**（约 0.54 屏/秒），否则距离变长而时长不变会让指尖速度变快、iOS 惯性行程变大又翻过头。",
+    "_note_jitter": "point_jitter_arm 是轨迹每步的机械臂坐标抖动(±0.15)，照抄旧工程已固化值；不要用像素级抖动（6px≈0.8 机械臂单位，会导致一卡一卡）。",
+    "_note_invert": "若实机发现上下/左右方向整体反了（多为摄像头安装方向/画面旋转导致），把 invert_y / invert_x 改成 true 即可，无需改代码。"
+  },
+  "detail_back": {
+    "anchor_template": "detail_back",
+    "offset": [
+      -250,
+      0
+    ],
+    "_note": "详情页返回箭头「锚点+偏移」模式：用右侧复杂区域（举报/分享）做锚点模板匹配 → 取中心 → X向左偏移固定像素得返回箭头坐标 → 点击。原因：返回箭头 < 太单薄、模板匹配不稳定；右侧区域特征多、命中可靠，且详情页 UI 布局固定，左右偏差恒定。offset=[dx,dy] 为快帧像素偏移量，默认 [-250,0] 即锚点中心左移250px。设 offset=[0,0] 则退化回直接点锚点中心。"
+  },
+  "dialog_close_points": {
+    "detail_grabbed": [
+      0.792,
+      0.33
+    ],
+    "close_mode": "anchor",
+    "offset_from_center": 136,
+    "_note": "详情页盖层弹窗（该货源已被抢/已下架）关闭按钮坐标策略。close_mode=anchor(默认): OCR找弹窗标题文字→取标题中心 center_x→× = 标题中心X + offset_from_center(默认136)点击。实测锚点: 标题'该货源已被抢'中心X≈245, ×中心X≈381, 偏移=136。用'标题中心+偏移'不依赖屏幕宽度且自动跟随弹窗上下浮动。close_mode=fixed: 纯用 detail_grabbed 归一化坐标(旧模式兜底)。"
+  },
+  "dialog_veil": {
+    "enabled": false,
+    "mean_max": 215,
+    "std_max": 20,
+    "_note": "半透明灰蒙版视觉检测阈值（OCR漏检时兜底识别盖层弹窗）。默认 enabled=false: 2026-09-06 实测正常白底/灰底详情页也会满足阈值→误判蒙版、误关健康详情页, 故默认关, 主判据只用OCR文字(已验证可靠)。若将来遇到OCR确漏检弹窗停死单, 再开 enabled=true 并一起标定 mean_max/std_max。蒙版覆盖全屏时屏幕四周条带灰度均值偏暗(mean<mean_max)且高度均匀(std<std_max); 正常详情页四周白底(V≈240)或彩色内容(方差大)不满足。"
+  },
+  "dedup": {
+    "use_order_db": true,
+    "spec_level": "route",
+    "db_path": "orders.sqlite3",
+    "ttl_days": 3,
+    "retro_dry_run": true,
+    "_note": "列表扫描查重（防止「进详情→放弃→回列表→又点同一张」）。use_order_db=是否查 SQLite 订单库（跨运行持久）；spec_level: route=同路线+同车长/车型/吨位/方数即判重（默认，推荐）, all=不限路线按参数判重（更狠，更易漏单）, off=只按完整 dup_key（含始发/目的）判重。",
+    "_note_why": "2026-09-06 实测：同一个 #1 连点三次。根因是列表卡常读不到『A→B』路线行，算不出与详情页一致的 dup_key，而详情页只写库、不回写扫描器内存缓存，扫描时也不查库。现在三级判据：内存文本指纹 → 内存参数指纹 → 订单库（先 OD 精 key，再路线+参数兜底）。"
+  },
+  "watchdog": {
+    "enabled": true,
+    "_note": "**运行监护（测试期自动急停）**：无人值守时异常不会被及时发现——点不动返回、卡在桌面、机械臂掉线、判定抽风，程序会带着错误状态一直跑。监护只观察日志与计数器，达到阈值就置 stop_event 停跑并留下原因（GUI/运行摘要可见），它本身绝不点击或滑动。",
+    "_note_rule": "每条规则：kind=log_match(日志正则+窗口次数)/counter(计数器当前值)/counter_delta(窗口内增量)/state_dwell(某状态连续停留)/stall(长时间无进展)；action=stop(默认,停跑)/warn(只告警)；cooldown_sec=触发后冷却，避免刷屏与自我递归。新增异常模式只需往 rules 里加一条，不动业务代码。",
+    "rules": {
+      "detail_stuck": {
+        "kind": "log_match",
+        "pattern": "返回箭头多次点击无效|无法退出详情页|详情页无法退出|连续 \\d+ 次无法退出",
+        "window_sec": 300,
+        "threshold": 2,
+        "action": "stop",
+        "_note": "三种真机文本都要覆盖：①『返回箭头多次点击无效，改用右滑返回手势』②『详情页无法退出：当前画面是弹窗』③『连续 N 次无法退出详情页，暂停 5s』"
+      },
+      "device_error": {
+        "kind": "log_match",
+        "pattern": "机械臂异常|取帧源异常|机械臂恢复失败|取帧源恢复失败",
+        "window_sec": 180,
+        "threshold": 2,
+        "action": "stop"
+      },
+      "action_fail": {
+        "kind": "log_match",
+        "pattern": "滑动失败|点击失败|归位失败",
+        "window_sec": 180,
+        "threshold": 6,
+        "action": "stop",
+        "_note": "偶发一次属正常（屏幕偶不跟手），攒够 6 次才停"
+      },
+      "route_setup_fail": {
+        "kind": "log_match",
+        "pattern": "设置失败（第 \\d+ 次）|路线设置连续失败|不在列表页",
+        "window_sec": 300,
+        "threshold": 3,
+        "action": "stop"
+      },
+      "same_screen": {
+        "kind": "counter",
+        "counter": "same_screen_streak",
+        "threshold": 25,
+        "action": "stop",
+        "_note": "5 轮只是告警；25 轮说明真卡在同一页空转"
+      },
+      "return_failed": {
+        "kind": "counter_delta",
+        "counter": "detail_return_failed",
+        "window_sec": 600,
+        "threshold": 3,
+        "action": "stop"
+      },
+      "refresh_fail": {
+        "kind": "counter_delta",
+        "counter": "list_refresh_fail",
+        "window_sec": 600,
+        "threshold": 3,
+        "action": "stop"
+      },
+      "loop_exception": {
+        "kind": "counter_delta",
+        "counter": "loop_exception",
+        "window_sec": 180,
+        "threshold": 3,
+        "action": "stop"
+      },
+      "grab_storm": {
+        "kind": "counter_delta",
+        "counter": "grabbed",
+        "window_sec": 300,
+        "threshold": 5,
+        "action": "stop",
+        "_note": "抢单风暴护栏：短时间狂抢多半是判定抽风，立刻停（dry_run 下不会触发）"
+      },
+      "lost_page": {
+        "kind": "state_dwell",
+        "states": [
+          "desktop",
+          "unknown"
+        ],
+        "dwell_sec": 180,
+        "action": "stop",
+        "_note": "跑偏到桌面/未知页没人管 = 手机被点进了无关页面"
+      },
+      "dedup_flood": {
+        "kind": "counter_delta",
+        "counter": "cards_deduped",
+        "window_sec": 300,
+        "threshold": 30,
+        "action": "warn",
+        "_note": "列表一直在推已处理过的单，说明刷新或去重可能有问题，先看一眼再决定"
+      },
+      "no_progress": {
+        "kind": "stall",
+        "progress_counters": [
+          "cards_hit",
+          "detail_returned",
+          "detail_rejected",
+          "grabbed"
+        ],
+        "stall_sec": 900,
+        "action": "warn",
+        "_note": "15 分钟完全没有进展只告警不停：测试期列表可能长时间没有合格单，这是正常的"
+      },
+      "round_time_limit": {
+        "kind": "elapsed",
+        "max_run_sec": 1200,
+        "action": "stop",
+        "cooldown_sec": 86400,
+        "_note": "**定时收工**：跑满 20 分钟自动停并输出本轮摘要，用于「跑一轮→分析→优化→再跑」的循环测试。非异常，是到点下钟。命令行 --max-run-sec 可覆盖；设 0 表示不限时。"
+      },
+      "city_panel_stuck": {
+        "kind": "counter_delta",
+        "counter": "city_panel_stuck",
+        "window_sec": 600,
+        "threshold": 3,
+        "action": "stop",
+        "_note": "城市面板退不出去（无顶部红字且确认非正红）累计 3 次即停，别让它反复空转"
+      },
+      "detail_dwell": {
+        "kind": "state_dwell",
+        "states": [
+          "detail"
+        ],
+        "dwell_sec": 300,
+        "action": "stop",
+        "_note": "详情页连停 5 分钟不动 = 卡住了（正常读完判定就返回）"
+      },
+      "scan_no_hit": {
+        "kind": "counter_delta",
+        "counter": "scan_empty_screen",
+        "window_sec": 600,
+        "threshold": 20,
+        "action": "warn",
+        "_note": "连续 20 次整屏 0 命中：可能列表没刷出来或切卡失效，先告警不停，结合日志看"
+      },
+      "repeat_point": {
+        "enabled": false,
+        "_note_disabled": "重复点跳过是预期内的去重保险（见 scan make_scan_hook），其 skip 日志已降级为 debug；数 bump 计数器触发监护纯属噪音，2026-09-08 起停用该规则",
+        "kind": "counter_delta",
+        "counter": "scan_repeat_point_skipped",
+        "window_sec": 300,
+        "threshold": 8,
+        "action": "warn",
+        "_note": "反复点同一张卡（去重指纹被 OCR 抖动冲破）超过 8 次告警"
+      }
+    }
+  },
+  "scan": {
+    "repeat_point_radius_px": 20,
+    "repeat_point_window_sec": 120,
+    "_note": "同落点打转兜底：详情返回后不再无条件下滑（那是漏单元凶，实测 61 张命中卡有 32 张从未进详情），本屏剩下的命中会依次点开。万一某张卡的去重指纹被 OCR 抖动冲破，用「点击落点与刚才几乎相同 + 时间在窗口内」再拦一道，防止反复点同一张卡。"
+  },
+  "list_no_more": {
+    "action": "next_route",
+    "restart_interval_sec": 30,
+    "cool_down_sleep_sec": 2,
+    "_note": "列表到底(NO_MORE)后的处置。action=refresh_restart(默认, 测试期口径): 点红色全国货源/返回顶部刷新列表, 回到顶部重新开始扫, 程序不停。action=next_route(正式): 切下一条路线, 全部跑完才停。",
+    "_note_cool": "restart_interval_sec=两次「到底刷新」之间的最小间隔。真到底时刷新拿到的还是同一批货, 不限流就会变成疯狂点红 Tab(伤号+机械臂空转); 冷却期内只休眠 cool_down_sleep_sec 后继续判态, 货源可能自己刷新出来。"
+  },
+  "list_refresh": {
+    "enabled": true,
+    "every_screens": 6,
+    "enter_interval_sec": 240,
+    "method": "source_red",
+    "fallback": "back_to_top",
+    "settle_sec": 2.0,
+    "_note": "列表保鲜：货源是实时的，从上往下扫的过程中，前面扫过的订单可能已被抢走或下架，扫到后面点进去就是「已被抢」弹窗，白浪费几秒。所以每扫若干屏就刷新一次列表，拿最新货源。",
+    "_note_method": "刷新入口用【点击】而不是下拉手势：机械臂做下拉滑动精度差、又容易被 App 识别成普通滑动；而点底部红色「全国货源」Tab 是 App 的标准刷新入口，点一下既回顶部又拉新数据。找不到红 Tab 时回退点「返回顶部」按钮。",
+    "_note_every": "every_screens=每上滑多少屏刷新一次（扫描过程中的保鲜）。调小更新鲜但更慢（每次刷新要等 settle_sec 秒）；调大更快但订单更容易失效。速度优先就调到 8~10。",
+    "_note_enter": "enter_interval_sec=进入列表页时距上次刷新超过多少秒就刷新一次，首次进入必定刷新（last=0）。用于「程序启动第一次进列表」和「一轮流程结束重新开始」这两个时机。",
+    "_note_order": "执行顺序（用户给定的手势语义）：先点红色全国货源/返回顶部刷新 → 若顶部区域仍隐藏再下滑把它展开 → 最后做听单状态判断与操作。刷新必须排在最前，因为它本身就会把列表带回顶部。",
+    "_note_settle": "settle_sec=点完刷新按钮后等列表重新加载的时间，太短会取到加载中的旧画面。"
+  },
+  "behavior_profiles": {
+    "_note": "反风控行为画像，由 default 选择。硬件层面我们零痕迹，唯一会被抓的是**行为节奏**，所以停顿/回滑/走神都要随机。",
+    "_note_params": "swipe_pause_range=每屏之间停顿区间（秒）；idle_range=每 20 屏一次的长停顿区间（设为空数组可关闭）；scroll_back_prob=每屏回滑概率（回看刚翻过的）；peek_detail_prob=进详情看一眼再退出的概率。",
+    "_note_peek": "**peek_detail_prob 暂未接线**：进入详情会触发完整的判定与抢单流程，与『只看一眼』的本意冲突，需要额外的『只看不抢』标志位。留到 v0.2 实现，当前填非 0 也不会生效。",
+    "_note_stealth": "balanced 只做随机停顿（对节奏影响最小，推荐日常使用）；stealth 额外启用回滑与长停顿，更像真人但更慢，适合被风控盯上后降速。",
+    "balanced": {
+      "swipe_pause_range": [
+        1.2,
+        2.6
+      ],
+      "idle_range": [
+        8,
+        20
+      ],
+      "scroll_back_prob": 0.0,
+      "peek_detail_prob": 0.0,
+      "swipe_speed": 1.0
+    },
+    "extreme": {
+      "swipe_pause_range": [
+        0.6,
+        1.4
+      ],
+      "idle_range": [
+        3,
+        8
+      ],
+      "scroll_back_prob": 0.0,
+      "peek_detail_prob": 0.0,
+      "swipe_speed": 1.4
+    },
+    "stealth": {
+      "swipe_pause_range": [
+        2.5,
+        5.0
+      ],
+      "idle_range": [
+        20,
+        45
+      ],
+      "scroll_back_prob": 0.08,
+      "peek_detail_prob": 0.05,
+      "swipe_speed": 0.7
+    },
+    "default": "balanced"
+  },
+  "trace": {
+    "enabled": true,
+    "dir": "data/traces",
+    "shot_sample_rate": 0.2,
+    "shot_key_steps_always": true,
+    "jpeg_quality": 60,
+    "max_side_px": 800,
+    "queue_size": 2000,
+    "drop_when_full": true,
+    "frame_sample_rate": 0.25,
+    "timing": true,
+    "_note_timing": "关键步骤耗时日志（[耗时] 扫描一屏 XXXms / 详情读字段 XXXms）。嫌日志多就关掉；调速度时打开，先看清楚时间花在哪再动手。",
+    "_note": "轨迹与截图写入独立线程队列，主循环只做 put_nowait；队列满则丢弃并计数，绝不阻塞流程。"
+  },
+  "database": {
+    "path": "data/orders.db",
+    "wal": true
+  },
+  "logging": {
+    "level": "INFO",
+    "dir": "data/logs",
+    "max_bytes": 5242880,
+    "backup_count": 5,
+    "console": true
+  },
+  "ai_samples": {
+    "enabled": true,
+    "save_card_crop": true,
+    "save_detail_shot": true,
+    "_note": "订单截图路径 + 结构化字段 + 人工结论一并入库，直接作为后续 AI 训练集。"
+  },
+  "stats": {
+    "interval_sec": 30,
+    "_note": "运行统计：每 interval_sec 在日志打一段『近N秒』计数器增量，供分析一段时间内的扫描/命中/抢单节奏，据此优化速度/判定。"
+  }
+}

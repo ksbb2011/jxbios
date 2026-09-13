@@ -1,0 +1,119 @@
+{
+  "device": {
+    "model": "iPhone X",
+    "capture_source": "camera",
+    "calib_dir": "camera__iphone_x"
+  },
+  "reports": {
+    "probe_cards": {
+      "last_run": "2026-09-05 14:24:00",
+      "log_file": "data/_probe/probe_cards_20260905_142400.txt",
+      "result": {
+        "last_write": {
+          "field": "che_length",
+          "dx": -185,
+          "dy": -42,
+          "w": 255,
+          "h": 26
+        }
+      }
+    },
+    "probe_detail_ocr": {
+      "last_run": "2026-09-05 19:49:00",
+      "log_file": "data/_probe/probe_detail_ocr_20260905_194900.txt",
+      "result": {
+        "detail_calibrated": true,
+        "resampled": {
+          "name": "dialog_grabbed",
+          "roi_px": [
+            70,
+            97,
+            175,
+            129
+          ],
+          "alt": "flow\\dialog_grabbed_live.png",
+          "frame": [
+            480,
+            640
+          ]
+        }
+      }
+    },
+    "calibrate_xy": {
+      "last_run": "2026-09-08 18:56:15",
+      "log_file": "data/_probe/calibrate_xy_20260908_185615.txt",
+      "result": {
+        "points": 4,
+        "mode": "manual",
+        "x_scale": 1.00527,
+        "x_offset": -0.657,
+        "y_scale": 0.99989,
+        "y_offset": -0.36,
+        "residual_x": 0.08,
+        "residual_y": 0.08,
+        "written": true
+      }
+    },
+    "calibrate_press": {
+      "last_run": "2026-09-08 17:43:47",
+      "log_file": "data/_probe/calibrate_press_20260908_174347.txt",
+      "result": {
+        "min_z": 6.0,
+        "delta": 0.3,
+        "z_press": 6.3,
+        "old_z_press": 6.0,
+        "scan_range": [
+          5.0,
+          6.5,
+          0.1
+        ],
+        "click_point": [
+          244,
+          535
+        ],
+        "scene": "list_tab",
+        "scene_target": "source_red",
+        "mode": "scene:list_tab"
+      }
+    },
+    "calibrate_screen_roi": {
+      "last_run": "2026-09-08 18:54:57",
+      "log_file": "data/_probe/calibrate_screen_roi_20260908_185457.txt",
+      "result": {
+        "old_roi": [
+          87,
+          64,
+          404,
+          571
+        ],
+        "new_roi": [
+          85,
+          63,
+          406,
+          575
+        ],
+        "old_arm_range": {
+          "x": [
+            9.93,
+            73.2
+          ],
+          "y": [
+            16.62,
+            154.62
+          ]
+        },
+        "new_arm_range": {
+          "x": [
+            9.93,
+            73.2
+          ],
+          "y": [
+            16.62,
+            154.62
+          ]
+        },
+        "written": true
+      }
+    }
+  }
+}

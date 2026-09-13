@@ -1,0 +1,8 @@
+{
+  "max_ton": 10.0,
+  "max_m3": 22.0,
+  "remaining_ton": null,
+  "remaining_m3": null,
+  "taken": [],
+  "_note": "拼单余量持久化（按 config/calib/<取帧源>__<机型>/ 隔离）。手动改这里等同于修改余量，改完重启即可生效。"
+}
