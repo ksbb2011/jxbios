@@ -1,0 +1,27 @@
+# ============================================================================
+#  换行约定（2026-09-13 建立，跨 Windows / macOS 协作）
+#
+#  为什么需要：Mac 上 clone 之后，如果 git 按 Mac 的习惯把 .bat 改成 LF，
+#  这些批处理文件在 Windows 上会出各种诡异问题（cmd 对 LF 的 .bat 容忍度差）。
+#  这里把 .bat/.cmd/.ps1 钉死成 CRLF，仓库内部统一按 LF 存储、检出时自动转换。
+#
+#  注意：本文件刻意**不写** `* text=auto`，避免一次性把全仓库文件重新规范化
+#  （那种改动 diff 巨大、还容易误伤二进制文件）。只钉真正需要的几类。
+# ============================================================================
+
+*.bat   text eol=crlf
+*.cmd   text eol=crlf
+*.ps1   text eol=crlf
+*.vbs   text eol=crlf
+
+# 常见二进制：明确标记，避免任何自动转换
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.bmp   binary
+*.ico   binary
+*.pyd   binary
+*.dll   binary
+*.exe   binary
+*.onnx  binary

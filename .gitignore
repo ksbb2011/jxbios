@@ -45,3 +45,19 @@ venv/
 *.swp
 .DS_Store
 Thumbs.db
+
+# ---- Xcode / iOS（2026-09-13 新增：Mac 上编译 App 会产生这些）---------------
+#  .xcodeproj / .xcworkspace **要提交**（两台机器共享同一份工程），
+#  但个人与派生数据必须排除，否则每次编译都产生大量无意义改动。
+xcuserdata/
+*.xcuserstate
+DerivedData/
+build/*.xcarchive
+*.moved-aside
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+# Swift Package Manager（当前用不到，先备着）
+.swiftpm/
+.build/

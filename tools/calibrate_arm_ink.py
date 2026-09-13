@@ -117,6 +117,7 @@ import numpy as np
 from core.devices.imouse_source import ImouseFrameSource
 from tools.calib_common import (
     ArmClient,
+    arm_range_from_model,
     Sample,
     Target,
     Z_HARD_MAX,
@@ -439,6 +440,43 @@ def _scan_z(cal: InkCalibrator, arm: ArmClient, hardware_path: Path,
     return 0
 
 
+def sync_arm_range_only(hardware_path: Path, width: int, height: int) -> int:
+    """只按当前 actuation 重算并写回 arm_range：不取帧、不驱臂、不占串口。
+
+    为什么需要单独一个入口：`_report` 写完 actuation 会顺带同步 arm_range，
+    但若那次同步失败/被中断（2026-09-13 就因 NameError 中断过一次），配置会停在
+    **"新 actuation + 旧 arm_range"** 的危险状态 —— 2026-09-10 正是这个状态导致
+    屏幕左上角被错误 clamp、返回箭头点不到。本入口用来几秒内把配置掰回来，
+    不必重跑 3~10 分钟的完整标定。
+    """
+    if width <= 0 or height <= 0:
+        _LOG.error("逻辑分辨率非法：%dx%d（--width/--height 需为正整数）", width, height)
+        return 2
+    if not hardware_path.is_file():
+        _LOG.error("找不到配置：%s", hardware_path)
+        return 2
+    try:
+        cfg = json.loads(hardware_path.read_text(encoding="utf-8"))
+    except Exception as exc:  # noqa: BLE001
+        _LOG.error("读配置失败：%s", exc)
+        return 2
+
+    cal = cfg.get("calibration") or {}
+    model = cal.get("actuation") or {}
+    if not model.get("ax") or not model.get("ay"):
+        _LOG.error("配置里没有可用的 actuation（先跑一次完整标定再来同步）")
+        return 2
+
+    old = cal.get("arm_range")
+    new, rows = arm_range_from_model(model, width, height)
+    _LOG.info("按当前 actuation 重算 arm_range（逻辑分辨率 %dx%d）：", width, height)
+    _LOG.info("  旧值 → 新值：%s → %s", old, new)
+    _LOG.info("  四角映射：%s", "  ".join(rows))
+    write_arm_range_from_model(hardware_path, model, width, height)
+    _LOG.info("✅ 已写回 %s（全程未取帧、未动机械臂）", hardware_path)
+    return 0
+
+
 # ================================================================ main
 def main() -> int:
     ap = argparse.ArgumentParser(description="机械臂映射标定（墨点版）")
@@ -494,12 +532,19 @@ def main() -> int:
     ap.add_argument("--width", type=int, default=375)
     ap.add_argument("--height", type=int, default=812)
     ap.add_argument("--host", default="127.0.0.1")
+    ap.add_argument("--sync-arm-range", action="store_true",
+                    help="只按当前 actuation 重算并写回 arm_range（不取帧、不驱臂、秒级返回）")
     args = ap.parse_args()
 
     logging.basicConfig(level=logging.INFO,
                         format="%(asctime)s %(levelname)s %(message)s")
     canvas = parse_canvas(args.canvas)
     hardware_path = Path(args.hardware)
+
+    # ---- 只同步 arm_range：**必须在这里就返回**（早于取帧源与机械臂创建），
+    # 保证零取帧、零机械臂动作、不占串口，秒级完成。
+    if args.sync_arm_range:
+        return sync_arm_range_only(hardware_path, args.width, args.height)
 
     src = ImouseFrameSource(host=args.host)
     src.open()
@@ -635,7 +680,8 @@ def main() -> int:
                                        jitter=args.jitter)
         v_samples = cal.collect(v_targets, model, rng_x, rng_y, "V")
         return _report(v_samples, args.max_error_pt, hardware_path,
-                       model=model, fit_n=len(all_valid))
+                       model=model, fit_n=len(all_valid),
+                       width=args.width, height=args.height)
 
     finally:
         try:
@@ -648,7 +694,7 @@ def main() -> int:
 
 def _report(samples: list[Sample], max_allowed: float,
             write_path: Path | None, model: dict | None = None,
-            fit_n: int = 0) -> int:
+            fit_n: int = 0, width: int = 0, height: int = 0) -> int:
     valid = [s for s in samples if s.touch_x >= 0]
     if not valid:
         _LOG.error("验收轮全部未检测到墨点")
@@ -690,7 +736,19 @@ def _report(samples: list[Sample], max_allowed: float,
     _LOG.info("✅ 已写入 %s", write_path)
     # 重标后必须同步 arm_range：否则屏幕边角按旧范围 clamp —— 就是 2026-09-10
     # "返回箭头点不到"那次的根因（此前只有读它的 load_arm_range，没有任何工具写它）。
-    write_arm_range_from_model(write_path, model, width, height)
+    # ⚠️ 两条纪律（2026-09-13 踩过）：
+    #   ① 尺寸必须由调用方传入 —— 本函数作用域里没有 width/height，
+    #      早先在这里写成裸变量，直接 NameError 把一次达标标定以异常收尾；
+    #   ② 同步失败**只告警** —— actuation 已经写好，不能让收尾的附加动作破坏主流程。
+    if model and width > 0 and height > 0:
+        try:
+            write_arm_range_from_model(write_path, model, width, height)
+        except Exception as exc:  # noqa: BLE001
+            _LOG.warning("arm_range 同步失败（%s）；actuation 已生效，"
+                         "可跑 `--sync-arm-range` 单独补同步", exc)
+    else:
+        _LOG.warning("未提供逻辑分辨率（width/height），跳过 arm_range 同步；"
+                     "可跑 `--sync-arm-range` 单独补同步")
     return 0
 
 
