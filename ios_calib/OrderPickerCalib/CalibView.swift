@@ -27,22 +27,21 @@ struct CalibView: View {
     var body: some View {
         GeometryReader { _ in
             ZStack {
-                // ① 全屏触摸画布（最底层，吃掉所有触摸）
-                TouchCanvas(
-                    onTouch: { point, size, kind in
+                // ① 全屏画布：**改用 PencilKit**（备忘录画笔同款组件）。
+                //    自绘 UIView 收不到机械臂的电容笔（真机实测），而备忘录能收到，
+                //    所以直接换成同一套组件；每落一笔取起点坐标上报，协议不变。
+                PencilCanvas(
+                    onStroke: { point, size in
                         canvasSize = size
-                        // 任何一次触摸都记一笔（含抬起、含电脑端不在 running 的情况）：
+                        // 任何一笔记一笔（含电脑端不在 running 的情况）：
                         // 现场判断"App 到底有没有收到触摸"就靠它
                         client.noteTouch(x: Double(point.x), y: Double(point.y))
-                        if kind == "began" {
-                            Task {
-                                await client.report(x: Double(point.x), y: Double(point.y),
-                                                    kind: kind,
-                                                    w: Double(size.width),
-                                                    h: Double(size.height))
-                            }
-                        } else {
-                            lastEnded = String(format: "%.1f, %.1f", point.x, point.y)
+                        lastEnded = String(format: "%.1f, %.1f", point.x, point.y)
+                        Task {
+                            await client.report(x: Double(point.x), y: Double(point.y),
+                                                kind: "began",
+                                                w: Double(size.width),
+                                                h: Double(size.height))
                         }
                     },
                     onMeta: { viewSize, winSize in
