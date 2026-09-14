@@ -72,9 +72,17 @@
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>用于与电脑上的标定工具通信，采集触摸坐标</string>
 
+	<!-- ===== 构建戳（屏上会显示，用来确认手机装的是哪一版） ===== -->
+	<!-- build_ipa.sh 在打包前会用 plutil 覆盖成 "commit 短哈希 + 构建时间"；
+	     本机 Xcode 直编时保持 dev。缺了它屏上只显示版本号，不影响任何功能。 -->
+	<key>BuildStamp</key>
+	<string>dev</string>
+
 	<!-- 注意：这里**刻意不写** UIApplicationSupportsIndirectInputEvents。
 	     它是"支持间接输入（鼠标/触控板/触控笔类）"的声明，会让系统按"指针"而非
-	     "手指触摸"来投递这类事件 —— 真机症状正是：机械臂的电容笔在备忘录里能画，
-	     本 App 的 touchesBegan 却完全收不到。删掉它，让触控笔继续走普通触摸通道。 -->
+	     "手指触摸"来投递这类事件 —— 曾经的怀疑正是：机械臂的电容笔在备忘录里能画，
+	     本 App 的 touchesBegan 却完全收不到。
+	     v1.1 起不再靠猜：主界面诊断面板会显示各通道计数与 touch.type，
+	     若现场看到 type=pointer（说明笔走了指针通道），再打开本键并处理指针事件。 -->
 </dict>
 </plist>

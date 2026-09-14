@@ -198,11 +198,50 @@ bash ios_calib/build_ipa.sh
 | `project.yml` | XcodeGen 工程描述（`xcodegen generate` 生成 `.xcodeproj`，云端无人点 GUI 时必须） |
 | `Info.plist` | 权限与显示配置固化：ATS 明文、本地网络授权、**`UILaunchScreen`（缺了坐标会整体错位）**、隐藏状态栏、只竖屏 |
 | `build_ipa.sh` | **唯一构建入口**：环境自检 → xcodegen → `xcodebuild` 未签名 Release → 打 `Payload/` 成 ipa（CI 与云 Mac 都调它） |
-| `OrderPickerCalib/CalibApp.swift` | App 入口 |
+| `OrderPickerCalib/CalibApp.swift` | App 入口；启动时安装窗口级触摸钩子 |
 | `OrderPickerCalib/CalibClient.swift` | 网络层：轮询 `GET /state`、上报 `POST /touch`，含视口自检、幂等重报、连接状态 |
-| `OrderPickerCalib/CalibView.swift` | 主界面：状态条 + 进度 + 靶心（白环=瞄准点、红点=靶点）+ 底部诊断行 + 设置面板 |
-| `OrderPickerCalib/TouchCanvas.swift` | 全屏触摸画布（`touchesBegan` → UIKit 逻辑点 + 当帧尺寸） |
+| `OrderPickerCalib/CalibView.swift` | 主界面：状态条 + 进度 + 靶心（白环=瞄准点、红点=靶点）+ 诊断面板 + 设置面板 |
+| `OrderPickerCalib/TouchDiagnostics.swift` | 多通道原始事件模型 `TouchSample` + 汇聚中心 `TouchHub`（合并去重、首个 `began` 即回调） |
+| `OrderPickerCalib/WindowProbe.swift` | `UIWindow.sendEvent` 只读钩子（"系统到底有没有投递事件"的最权威证据） |
+| `OrderPickerCalib/BuildStamp.swift` | 读取 Info.plist 的 `BuildStamp`，屏上显示当前构建（确认手机装的是哪一版） |
+| `OrderPickerCalib/TouchCanvas.swift` | **默认**全屏采集画布（plain `UIView`，全相位记录 + 0 延迟手势兜底） |
+| `OrderPickerCalib/PencilCanvas.swift` | PencilKit 对照通道（默认关闭，设置里可切换） |
 | `../.github/workflows/ios-ipa.yml` | GitHub Actions：装 XcodeGen → 调 `build_ipa.sh` → 上传 ipa 产物 |
+
+---
+
+## 八、多通道诊断版（v1.1，2026-09-14）——"机械臂电容笔点不动"怎么定位
+
+**为什么要改**：此前「手指能点、机械臂电容笔点不动」，而旧版只靠 PencilKit 一条通道，且它的回调
+只在"一笔画完（`canvasViewDidEndUsingTool`）"时才触发 —— 于是"计数不涨"到底是"事件没进 App"还是
+"进了但没合成出笔迹"，根本分不清。v1.1 把采集改成**多通道并行**，并在屏上直接显示原始事件。
+
+**四条通道**（都计入诊断面板的「通道」一行）：
+
+| 通道 | 来源 | 意义 |
+|---|---|---|
+| 窗口 | `UIWindow.sendEvent` 钩子 | **最权威**：绕过一切手势识别器与 PencilKit，系统只要投递就一定能看到 |
+| 视图 | 全屏原生 `UIView` 的 `touchesBegan/…` | 默认采集通道；拿到 `began` 坐标即上报 |
+| 手势 | 0 延迟长按识别器（手指/手写笔/指针三类） | 兜底，防某类输入不走 `touches*` |
+| Pencil | PencilKit 对照（默认关闭，设置里可切） | 能画出笔迹，用于判断"系统认不认这支笔" |
+
+**现场判读**（主界面在**非运行态**才显示诊断面板；运行中自动隐藏，避免遮挡/截触摸）：
+
+1. 用机械臂点几下屏幕，看「通道」那行的四组计数：
+   - **窗口 > 0** → 系统确实把笔的触摸交给了 App。默认「原生视图」通道即可上报，问题闭环。
+   - **窗口 = 0，但视图/手势 > 0** → 事件走了特殊输入通道，视图/手势仍收到了，已可上报。
+   - **全部 = 0** → 系统级未投递到本 App（最罕见）。退路：改用全屏 `WKWebView` canvas，或调整机械臂接触方式（先轻触停稳再下压）。
+2. 看「最近事件」列表里的 `type`：`direct`=当作手指触摸（正常）；`pointer`=当作间接指针；`pencil`=识别为手写笔。
+3. 看 `phase`：出现 `cancelled` 说明接触不稳/被系统打断 —— **不影响上报**，v1.1 只要拿到 `began` 就采信。
+4. 顶部「版本 v1.1(2) · <commit> <构建时间>」用来确认手机上装的确实是刚编的那版。
+
+**合并规则（0.8s）**：同一次物理按压会被多条通道各报一遍，`TouchHub` 把它们合并成一次，
+只回调一次上报；两次按压之间至少有「抬起 0.15s + 移动 + settle 1.5s」的间隔，0.8s 足够安全。
+
+**设置里的「采集通道」**：
+- **原生视图（推荐，默认）**：直接上报触点坐标，不依赖 PencilKit 是否合成出一整笔。
+- **PencilKit 对照**：会在屏上真的画出笔迹。若切到它能画出笔迹，说明"系统认这支笔"，
+  问题只在旧版的回调时机上——而这正是 v1.1 用原生视图规避掉的。
 
 ### 编译报错回贴模板
 

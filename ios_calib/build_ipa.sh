@@ -71,6 +71,22 @@ fi
 APP="$OBJ_DIR/$PROJ_NAME.app"
 [ -d "$APP" ] || die "编译过了但找不到 .app：$APP（看上面 xcodebuild 的输出定位）"
 
+# ------------------------------------------------------------------ 构建戳
+# 把 commit 短哈希 + 构建时间写进 .app 的 Info.plist；屏上诊断面板会显示它，
+# 用来确认"手机上装的到底是不是我刚编的那版"（之前排查最大的黑洞就在这）。
+# 任何一步失败都不阻断出包，只是屏上少一个戳。
+log "写入构建戳（BuildStamp）"
+STAMP_COMMIT="$(git -C "$HERE" rev-parse --short HEAD 2>/dev/null || echo nogit)"
+if ! git -C "$HERE" diff --quiet 2>/dev/null; then
+  STAMP_COMMIT="${STAMP_COMMIT}+dirty"
+fi
+STAMP="$(date -u +%Y-%m-%dT%H:%MZ) ${STAMP_COMMIT}"
+if ! plutil -replace BuildStamp -string "$STAMP" "$APP/Info.plist" 2>/dev/null; then
+  plutil -insert BuildStamp -string "$STAMP" "$APP/Info.plist" 2>/dev/null \
+    || printf '⚠️ 构建戳写入失败（不阻断出包）\n'
+fi
+printf 'BuildStamp = %s\n' "$STAMP"
+
 # ------------------------------------------------------------------ 打包 ipa
 log "打包 ipa"
 rm -rf "$BUILD_DIR/Payload"

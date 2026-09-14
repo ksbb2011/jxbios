@@ -13,42 +13,52 @@
 import SwiftUI
 import UIKit          // UIApplication.shared.isIdleTimerDisabled 需要（只 import SwiftUI 时可能编不过）
 
+/// 采集通道选择（排查用，设置里可切；默认 plain 原生视图）
+enum CaptureMode: String {
+    case plain      // 全屏原生 UIView：直接取触点坐标，不依赖 PencilKit 合成笔迹
+    case pencil     // PencilKit 对照通道：能画出笔迹，是"系统认不认这支笔"的直观旁证
+}
+
 struct CalibView: View {
 
     @StateObject private var client = CalibClient()
+    /// 多通道原始触摸汇聚中心（窗口钩子 + 原生视图 + 手势 + PencilKit）
+    @ObservedObject private var hub = TouchHub.shared
     @AppStorage("serverURL") private var serverURL: String = "192.168.1.100:8767"
+    @AppStorage("captureMode") private var captureModeRaw: String = CaptureMode.plain.rawValue
     @State private var showSettings = false
     @State private var canvasSize: CGSize = .zero
     @State private var windowSize: CGSize = .zero
-    @State private var lastEnded = "-"
     @State private var didAutoOpenSettings = false
     @Environment(\.scenePhase) private var scenePhase
+
+    private var captureMode: CaptureMode { CaptureMode(rawValue: captureModeRaw) ?? .plain }
 
     var body: some View {
         GeometryReader { _ in
             ZStack {
-                // ① 全屏画布：**改用 PencilKit**（备忘录画笔同款组件）。
-                //    自绘 UIView 收不到机械臂的电容笔（真机实测），而备忘录能收到，
-                //    所以直接换成同一套组件；每落一笔取起点坐标上报，协议不变。
-                PencilCanvas(
-                    onStroke: { point, size in
-                        canvasSize = size
-                        // 任何一笔记一笔（含电脑端不在 running 的情况）：
-                        // 现场判断"App 到底有没有收到触摸"就靠它
-                        client.noteTouch(x: Double(point.x), y: Double(point.y))
-                        lastEnded = String(format: "%.1f, %.1f", point.x, point.y)
-                        Task {
-                            await client.report(x: Double(point.x), y: Double(point.y),
-                                                kind: "began",
-                                                w: Double(size.width),
-                                                h: Double(size.height))
-                        }
-                    },
-                    onMeta: { viewSize, winSize in
-                        canvasSize = viewSize
-                        if let w = winSize { windowSize = w }
+                // ① 全屏采集画布：默认走 **plain 原生视图**（最稳），可在设置里切到 PencilKit 对照。
+                //    两条通道、0 延迟手势识别器以及**窗口级钩子**都会把原始事件送进 TouchHub，
+                //    由 TouchHub 合并去重后回调上报（见 TouchDiagnostics.swift）。
+                Group {
+                    if captureMode == .pencil {
+                        PencilCanvas(
+                            onSample: { hub.ingest($0) },
+                            onMeta: { viewSize, winSize in
+                                canvasSize = viewSize
+                                if let w = winSize { windowSize = w }
+                            }
+                        )
+                    } else {
+                        TouchCanvas(
+                            onSample: { hub.ingest($0) },
+                            onMeta: { viewSize, winSize in
+                                canvasSize = viewSize
+                                if let w = winSize { windowSize = w }
+                            }
+                        )
                     }
-                )
+                }
                 .ignoresSafeArea()
 
                 // ② 靶心：白环 = 本次瞄准点，红点 = 本轮靶点
@@ -128,11 +138,17 @@ struct CalibView: View {
                 .padding(.horizontal, 12)
                 .padding(.top, client.phase == "running" ? 6 : 0)
 
-                // ④ 底部诊断行（平时压暗，出问题时它是第一手证据）
-                VStack {
+                // ④ 底部：诊断面板（**仅非运行态**）+ 一行诊断信息
+                //    运行中必须让整屏干净：网格最高一行正好压在顶部胶囊区，
+                //    底部这块也要避免遮挡机械臂落点（历史真机实测：第 1 个点就是这么丢的）。
+                VStack(spacing: 6) {
                     Spacer()
+                    if client.phase != "running" {
+                        DiagnosticPanel(hub: hub)
+                            .padding(.horizontal, 10)
+                    }
                     Text(footerText)
-                        // 放大加亮 + 补"触摸 N / 最近触摸"：现场判断"App 有没有收到触摸"
+                        // 放大加亮 + 补"采信 N / 最近触摸"：现场判断"App 有没有收到触摸"
                         // 全靠这一行，原来 11pt/0.42 太暗，调试时根本看不清。
                         .font(.system(size: 14, weight: .medium, design: .monospaced))
                         .foregroundColor(.white.opacity(0.8))
@@ -149,6 +165,17 @@ struct CalibView: View {
         .statusBar(hidden: true)
         .onAppear {
             UIApplication.shared.isIdleTimerDisabled = true      // 防自动锁屏（整轮标定要几分钟）
+            // TouchHub 的"首个按下样本"是**唯一**的上报来源：
+            // 无论窗口钩子 / 原生视图 / 手势哪条通道先拿到，都在这里统一计数与上报，
+            // 因此不再依赖 PencilKit 是否合成出一整笔。
+            hub.onFirstSample = { s in
+                client.noteTouch(x: s.x, y: s.y)                 // 现场计数 + 最近触摸显示
+                Task {
+                    await client.report(x: s.x, y: s.y, kind: "began",
+                                        w: Double(s.viewport.width),
+                                        h: Double(s.viewport.height))
+                }
+            }
             client.start(base: serverURL)
             // 兜底入口：地址没填对 / 电脑端还没跑时，右上角齿轮又小又难戳。
             // 12 秒后若仍未连上、且从未成功上报过，就把设置面板自动打开一次。
@@ -173,7 +200,10 @@ struct CalibView: View {
             }
         }
         .sheet(isPresented: $showSettings) {
-            SettingsView(serverURL: $serverURL, client: client, canvasText: canvasText)
+            SettingsView(serverURL: $serverURL,
+                         captureModeRaw: $captureModeRaw,
+                         client: client,
+                         canvasText: canvasText)
         }
     }
 
@@ -222,14 +252,14 @@ struct CalibView: View {
                     "画布 \(canvasText)   " +
                     "窗口 \(Int(windowSize.width))×\(Int(windowSize.height))   " +
                     "期望 \(expectText)"
-        // 触摸数**始终显示**（未连接时也显示）——"屏到底有没有收到触摸"是现场第一问题
-        line1 += "   触摸 \(client.touchSeen)   上报 \(client.reports)"
+        // 采信数**始终显示**（未连接时也显示）——"屏到底有没有收到触摸"是现场第一问题
+        line1 += "   采信 \(client.touchSeen)   上报 \(client.reports)"
         if client.connected {
-            // 触摸 = 屏上真实收到的触摸次数（含抬起；电脑端未在 running 时也计）
+            // 采信 = TouchHub 判定为"一次按下"的次数（=最终会被上报的次数）
             // 上报 = 成功发给电脑的次数（只在电脑端 running 时才会涨）
             line1 += "   轮询 \(client.polls)"
             line1 += "\n最近触摸 \(client.lastTouchAt) @ \(client.lastTouchText)" +
-                     "   电脑收到 \(client.lastAckText)   抬起 \(lastEnded)"
+                     "   电脑收到 \(client.lastAckText)"
         } else {
             line1 += "\n未连接：\(client.lastError)"
         }
@@ -237,10 +267,47 @@ struct CalibView: View {
     }
 }
 
+// MARK: - 现场诊断面板（只在非运行态显示，且完全不响应点击）
+
+/// 它回答现场最关键的两个问题：
+///   ① 系统到底有没有把触摸交给本 App（看各通道计数：窗口/视图/手势/Pencil）
+///   ② 交来的是什么（type / phase / 坐标 / 半径 / 力度），据此判断该用哪条通道上报
+private struct DiagnosticPanel: View {
+    @ObservedObject var hub: TouchHub
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text("版本 \(BuildStamp.text)")
+                .foregroundColor(.yellow.opacity(0.9))
+            Text("通道 \(hub.countsText)   采信 \(hub.pressCount)")
+                .foregroundColor(.green.opacity(0.95))
+            if hub.recent.isEmpty {
+                Text("暂无触摸事件：用机械臂点屏，这里会出现原始事件")
+                    .foregroundColor(.white.opacity(0.5))
+            } else {
+                // 用下标做 id：TouchSample 不是 Identifiable，且元组元素不能当 key path，
+                // 所以按 indices + \.self 遍历（数组元素少，开销可忽略）。
+                ForEach(hub.recent.indices, id: \.self) { i in
+                    Text(hub.recent[i].line).foregroundColor(.cyan.opacity(0.95))
+                }
+            }
+        }
+        .font(.system(size: 10, weight: .medium, design: .monospaced))
+        .lineLimit(1)
+        .minimumScaleFactor(0.6)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(8)
+        .background(Color.black.opacity(0.6))
+        .cornerRadius(8)
+        .allowsHitTesting(false)   // 诊断面板绝不能截住触摸
+    }
+}
+
 // MARK: - 设置（填电脑地址）
 
 private struct SettingsView: View {
     @Binding var serverURL: String
+    @Binding var captureModeRaw: String
     @ObservedObject var client: CalibClient
     var canvasText: String
     @Environment(\.dismiss) private var dismiss
@@ -253,6 +320,15 @@ private struct SettingsView: View {
                         .keyboardType(.numbersAndPunctuation)
                         .autocorrectionDisabled(true)
                         .textInputAutocapitalization(.never)
+                }
+                Section(header: Text("采集通道（排查用）")) {
+                    Picker("采集通道", selection: $captureModeRaw) {
+                        Text("原生视图（推荐）").tag(CaptureMode.plain.rawValue)
+                        Text("PencilKit 对照").tag(CaptureMode.pencil.rawValue)
+                    }
+                    .pickerStyle(.segmented)
+                    Text("默认「原生视图」：直接把触点坐标上报，不依赖 PencilKit 是否合成出一整笔。切到「PencilKit 对照」会在屏上真的画出笔迹，用于判断系统认不认这支笔。改完回主界面即生效（会重建画布）。")
+                        .font(.footnote).foregroundColor(.secondary)
                 }
                 Section(header: Text("状态")) {
                     Text(client.connected ? "已连接" : "未连接")
