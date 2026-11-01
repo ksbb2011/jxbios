@@ -32,7 +32,7 @@ jobs:
   ipa:
     # 用 macos-latest 最省心（任何较新的 Xcode 都能编；真机安装由 Sideloadly 完成，
     # 与 runner 的 Xcode 版本无关）。若该标签不可用，改成 macos-15 / macos-14 即可。
-    runs-on: macos-latest
+    runs-on: runs-on: macos-14
     timeout-minutes: 30
 
     steps:
