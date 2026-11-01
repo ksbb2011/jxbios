@@ -30,9 +30,11 @@ on:
 
 jobs:
   ipa:
-    # 用 macos-latest 最省心（任何较新的 Xcode 都能编；真机安装由 Sideloadly 完成，
-    # 与 runner 的 Xcode 版本无关）。若该标签不可用，改成 macos-15 / macos-14 即可。
-    runs-on: runs-on: macos-14
+    # 锁定 macos-14（自带 Xcode 15.x）：真机是 iPhone X / iOS 16.7，
+    # 太新的 Xcode(16/26) 编的包依赖 iOS 16.7 dyld 缓存里没有的库 → 启动即 DYLD 崩溃
+    # （同 WDA 当年踩的坑）。Xcode 15 的 Swift 5.x 与 iOS 16.7 自带运行时匹配。
+    # 若 macos-14 不可用，改 macos-13（同为 Xcode 15.x）。
+    runs-on: macos-14
     timeout-minutes: 30
 
     steps:
